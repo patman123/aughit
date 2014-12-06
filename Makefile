@@ -1,5 +1,7 @@
 aughit:
-	g++ -ggdb `pkg-config --cflags opencv` `basename opencvtest.cpp .cpp` opencvtest.cpp `pkg-config --libs opencv` -lBox2D -o aughit 
+	g++ -ggdb `pkg-config --cflags opencv` opencvtest.cpp `pkg-config --libs opencv` -lBox2D -o aughit 
+vidplay:
+	g++ -ggdb `pkg-config --cflags opencv` vidplay.cpp `pkg-config --libs opencv` -o vidplay
 
 clean:
-	rm aughit
+	rm aughit vidplay

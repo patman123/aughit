@@ -28,16 +28,16 @@ bool doSleep = true;
 // Construct a world object, which will hold and simulate the rigid bodies.
 b2World world(gravity, doSleep);
 float pixel=40;
-
+int BLOCKCOUNT=14;
 double WORLDH=15;
-double WORLDW=10;
+double WORLDW=20;
 double THICKNESS=0.2;
 b2Fixture *_paddleFixture;
 
 int BALL=1, PADDLE=2, BLOCK=3;
 
 int Threshx=0, Threshy=0;
-double XOFFSET=WORLDW/4, YOFFSET=WORLDH/10;
+double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;
 int blocktag=3;
 
 struct MyContact {
@@ -111,7 +111,7 @@ ball::ball()
 	tag=1;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_dynamicBody;
-	bodyDef.position.Set(WORLDW-2,WORLDH-6);
+	bodyDef.position.Set(4,WORLDH-6);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	b2CircleShape dynamicBox;
@@ -129,11 +129,13 @@ paddle::paddle()
 	tag=2;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(WORLDW/2,WORLDH-2);
+	bodyDef.position.Set(4,WORLDH-2);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
+	// b2CircleShape paddleShape;
+	// paddleShape.m_radius = 1.5;
 	b2PolygonShape paddleShape;
-	paddleShape.SetAsBox(WORLDW/5.5, 2*THICKNESS);
+	paddleShape.SetAsBox(WORLDW/12, THICKNESS*2);
 	b2FixtureDef fixtureDef;
 	fixtureDef.shape = &paddleShape;
 	fixtureDef.density = 10.0f;
@@ -152,16 +154,16 @@ block::block()
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	b2PolygonShape blockShape;
-	blockShape.SetAsBox(WORLDW/12, WORLDH/30);
+	blockShape.SetAsBox(WORLDW/24, WORLDH/30);
 	b2FixtureDef fixtureDef;
 	fixtureDef.shape = &blockShape;
 	fixtureDef.density = 10.0f;
 	fixtureDef.friction = 0.0f;
 	fixtureDef.restitution = 1;
 	body->CreateFixture(&fixtureDef);
-	XOFFSET+=WORLDW/4;
+	XOFFSET+=WORLDW/8;
 	if(XOFFSET>WORLDW-0.5){
-		XOFFSET=WORLDW/4;
+		XOFFSET=WORLDW/8;
 		YOFFSET+=2*WORLDH/15;
 	}
 };
@@ -273,8 +275,10 @@ b2Vec2* getPoints(b2Vec2 pos[], double angle)
 	for(int c=0;c<4;c++){
 	newp[c].x=pos[c].x*cos(angle)-pos[c].y*sin(angle);
 	newp[c].y=pos[c].y*cos(angle)+pos[c].x*sin(angle);
+	//cout<<newp[c].x<<" "<<newp[c].y<<"\n";
 	}	
-	return pos;
+	//cout<<angle<<"\n";
+	return newp;
 }
  
  
@@ -293,13 +297,14 @@ int main( int argc, const char** argv )
 
 	b2Vec2 position;
 	ball Ball;
-	b2Vec2 force = b2Vec2(-1,2);
+	b2Vec2 force = b2Vec2(0.3,2);
 	float32 timeStep = 1.0f / 30.0f;
 	int32 velocityIterations = 6;
 	int32 positionIterations = 5;
 
-	block Blocks[9];
-	int destroyed[9]={0,0,0,0,0,0,0,0,0};
+	block Blocks[BLOCKCOUNT];
+	int destroyed[BLOCKCOUNT];
+	for(int dest=0;dest<BLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
 	int bA=0, bB=0;
 	b2Vec2 locationWorld;
@@ -318,7 +323,6 @@ int main( int argc, const char** argv )
 	int npt[]={4};
 	b2Vec2 newcoord;
 	double *angle;
-
 	
 	angle=(double *)malloc(sizeof(double));
 	int bottomhitcount=0;
@@ -342,6 +346,9 @@ int main( int argc, const char** argv )
 	setIdentity(KF.processNoiseCov, Scalar::all(1e-4));
 	setIdentity(KF.measurementNoiseCov, Scalar::all(10));
 	setIdentity(KF.errorCovPost, Scalar::all(.1));
+
+
+	char* output="";
 
 	floorBox.SetAsBox(WORLDW/2,THICKNESS/2);
 	floorFixtureDef.shape = &floorBox;
@@ -376,29 +383,30 @@ int main( int argc, const char** argv )
 	
 	//namedWindow( "Lines ", CV_WINDOW_AUTOSIZE);
 	namedWindow( "Capture ", CV_WINDOW_AUTOSIZE);
-    namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
+    //namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
     setMouseCallback("Capture ", mouse_callback, NULL);
-	cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
-	cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
-	cvCreateTrackbar("Threshold Blue","Camera ",&c3,255); 
+	// cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
+	// cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
+	// cvCreateTrackbar("Threshold Blue","Camera ",&c3,255); 
 	frame=cvLoadImage("test.jpg");
 	gameover=cvLoadImageM("gameover.jpg");
 
     vector<blob> blobs;
-    VideoCapture capture(1);
+    VideoCapture capture(-1);
 	if(!capture.isOpened()){
 		return -1;
 	}
 
-    VideoWriter outputVideo("VirtualArena.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
+    VideoWriter outputVideo("Test.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
 
     if (!outputVideo.isOpened())
     {
         cout  << "Could not open the output video for write: " << endl;
         return -1;
     }
-    waitKey();
+    // waitKey();
 
+	printf("%d %d\n", (int)600, (int)800);
 	while( key != 'q' ){
 	 	capture >> frame;
 		resize(frame, frame, size);
@@ -449,8 +457,7 @@ int main( int argc, const char** argv )
   		pos[1]=pospoly->GetVertex(1);
   		pos[2]=pospoly->GetVertex(2);
   		pos[3]=pospoly->GetVertex(3);
-
-
+		newcoord.x=Threshx;
 		newcoord.y=WORLDH-2;
 		measurement(0)=newcoord.x;
 		measurement(1)=*angle;
@@ -464,23 +471,29 @@ int main( int argc, const char** argv )
 
 		newcoord.x=newcoord.x/pixel;
 		//cout<<newcoord.x<<"\n";
+		*angle=0;
 		posp=getPoints(pos, *angle);
 
   		for(int c=0;c<4;c++)
   		{
   			rook_points[0][c]=Point((position.x-posp[c].x)*pixel, (position.y-posp[c].y)*pixel);
+  			//cout<<(position.x-posp[c].x)*pixel<<" "<< (position.y-posp[c].y)*pixel<<"\n";
+  			//cout<<posp[c].x<<" "<<posp[c].y<<"\n";
   		}
   		// for(int c=0;c<4;c++)
   		// {		
   		// cout<<(position.x-posp[c].x)*pixel<<" "<<(position.y-posp[c].y)*pixel<<"\n";
   		// }
-  		// cout<<"\n";
+  		//cout<<"\n";
 		const Point* ppt[1]= {rook_points[0]};
-	//	newcoord.x=Threshx/pixel;
-		if(newcoord.x<(WORLDW-WORLDW/5.5-THICKNESS)&&newcoord.x>(WORLDW/5.5+THICKNESS)){
+		newcoord.x=Threshx/pixel;
+		if(newcoord.x<(WORLDW-1.7-THICKNESS)&&newcoord.x>(1.7+THICKNESS)){
 		Player.body->SetTransform(newcoord, (float)*angle);
 	}
-		fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
+	 	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
+
+		//ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
+		//ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
 		// waitKey();
 		//cout<<position.x<<" "<<position.y<<"\n";
 		//rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
@@ -494,14 +507,14 @@ int main( int argc, const char** argv )
 		//position=Player.body->GetPosition();
 		drawxoff=0;
 		drawyoff=0;
-		for(int bc=0;bc<9;bc++)
+		for(int bc=0;bc<BLOCKCOUNT;bc++)
 		{
 			if(destroyed[bc]==0)
 			{
-				rectangle( image , Point((drawxoff+WORLDW/6)*pixel, (drawyoff+WORLDH/15)*pixel),Point((drawxoff+WORLDW/3)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);	
+				rectangle( image , Point((drawxoff+WORLDW/12)*pixel, (drawyoff+WORLDH/15)*pixel),Point((drawxoff+WORLDW/6)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);	
 			}
-			drawxoff+=WORLDW/4;
-			if(bc%3==2){
+			drawxoff+=WORLDW/8;
+			if(bc%7==6){
 				drawxoff=0;
 				drawyoff+=2*WORLDH/15;
 			}
@@ -551,10 +564,19 @@ int main( int argc, const char** argv )
 			    
 				 }
 			   
-		if(bottomhitcount>2)break;
+		//if(bottomhitcount>2)break;
 		imshow( "Capture ", image );
-		imshow("Camera ", lineimg);
+		//imshow("Camera ", lineimg);
 		//imshow("Camera ", threshold_output);
+		Vec3b intensity;
+		for(int ht=0;ht<600;ht++)
+		{
+			for(int wd=0;wd<800;wd++)
+			{
+				intensity = image.at<Vec3b>(ht, wd);
+				printf("%d %d %d\n", intensity.val[0], intensity.val[1], intensity.val[2]);
+			}
+		}
 		outputVideo<<image;
 	}
 
