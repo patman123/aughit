@@ -582,14 +582,13 @@ int main( int argc, const char** argv )
 			{
 				bottomhitcount++;
 			}
-		if(position.y>=WORLDH-6&&position.y<=WORLDH-7)
+		if(position.y>=WORLDH-6)		//Have to fix this now
 		{
 			while(1)
 			{
 				char a = waitKey(33);
 				if(a==27) 
 				{
-					flag = 0;
 					break;
 				}
 			}
