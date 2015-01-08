@@ -34,13 +34,13 @@ double WORLDH=15;	//world height
 double WORLDW=20;	//world width
 double THICKNESS=0.2;	//thickness defined here
 b2Fixture *_paddleFixture;	//define pointer to type b2Fixture called paddle fixture
-
 int BALL=1, PADDLE=2, BLOCK=3 , CORNER=4; //define different variables for different objects
-
+char a = 'a';
+string fname = "a.avi";
 int Threshx=0, Threshy=0;		//Set Threshold X , Threshold Y to zero 
 int ballX , ballY;
 double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
-double X_CORNER=WORLDW/20, Y_CORNER=WORLDH/15;	//trying out x corner , y corner
+double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
 int blocktag=3;		//block tag defined to be 3
 int cornertag =17;	//corner tag = 50
 
@@ -187,7 +187,10 @@ corner::corner()
 	cornertag++;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(X_CORNER,Y_CORNER);
+	if(tag<=17)
+		bodyDef.position.Set(X_CORNER,Y_CORNER);
+	else
+		bodyDef.position.Set(WORLDW-X_CORNER, Y_CORNER);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	b2Vec2 vertices[3],vertices1[3];
@@ -208,7 +211,7 @@ corner::corner()
 	fixtureDef.friction = 0.0f;
 	fixtureDef.restitution = 1;
 	body->CreateFixture(&fixtureDef);
-	X_CORNER = WORLDW - X_CORNER;
+	//X_CORNER = WORLDW - X_CORNER;
 }
 
 MyContactListener::MyContactListener() : _contacts() {
@@ -344,10 +347,12 @@ int main( int argc, const char** argv )
 	int32 velocityIterations = 20;
 	int32 positionIterations = 5;
 
-	block Blocks[BLOCKCOUNT];
+	// block Blocks[BLOCKCOUNT];
 	corner Corners[CORNERCOUNT];
 	int flag = 1;
-	int tt = 0 ;
+	// int tt = 0 ;
+	char aa = 'a';
+	// string fname;
 	int destroyed[BLOCKCOUNT];
 	for(int dest=0;dest<BLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
@@ -442,8 +447,8 @@ int main( int argc, const char** argv )
 	if(!capture.isOpened()){
 		return -1;
 	}
-
-    VideoWriter outputVideo("Test.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
+	fname.replace(0,1,1,aa);
+    VideoWriter outputVideo(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
 
     if (!outputVideo.isOpened())
     {
@@ -451,7 +456,7 @@ int main( int argc, const char** argv )
         return -1;
     }
     // waitKey();
-
+    cout << cornertag << endl;
 	 printf("%d %d\n", (int)600, (int)800);
 	while( key != 'q' ){
 	 	capture >> frame;
@@ -577,35 +582,32 @@ int main( int argc, const char** argv )
 		b[2]=Point((WORLDW-THICKNESS)*pixel, 2*pixel);
 		fillConvexPoly(image , a, 3, CV_RGB(255,255,255));
 		fillConvexPoly(image, b , 3, CV_RGB(255,255,255));
+		outputVideo<<image;
 		position=Ball.body->GetPosition();
 		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))		//The ball has hit the bottom floor
 			{
 				bottomhitcount++;
 			}
+		if(position.y<WORLDH-6)
+			flag = 1;
 		if(position.y>=WORLDH-6)		//Have to fix this now
 		{
+			if(flag)
+		 {
 			while(1)
 			{
 				char a = waitKey(33);
 				if(a==27) 
 				{
+					flag = 0;
+					aa++;//fname++;
+					cout << aa <<endl;
+					outputVideo.release();
 					break;
 				}
 			}
-			// if(flag[tt]==1)
-			// {
-			// 	while(1)
-			// 	{
-			// 	if(waitKey(33)=='a')
-			// 		{
-			// 			flag[tt] = 0 ; 
-			// 			tt++;	
-			// 			break; 
-			// 		}
-			// 	}
-			// }
+		 }
 		}
-
 		 std::vector<b2Body *>::iterator pos2;
 			    for (pos2 = toDestroy.begin(); pos2 != toDestroy.end(); ++pos2) {
 			    	
@@ -658,7 +660,6 @@ int main( int argc, const char** argv )
 		// 		// printf("%d %d %d\n", intensity.val[0], intensity.val[1], intensity.val[2]);
 		// 	}
 		// }
-		outputVideo<<image;
 	}
 
 	resize(gameover, gameover ,size);
