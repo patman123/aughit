@@ -35,8 +35,6 @@ double WORLDW=20;	//world width
 double THICKNESS=0.2;	//thickness defined here
 b2Fixture *_paddleFixture;	//define pointer to type b2Fixture called paddle fixture
 int BALL=1, PADDLE=2, BLOCK=3 , CORNER=4; //define different variables for different objects
-char a = 'a';
-string fname = "a.avi";
 int Threshx=0, Threshy=0;		//Set Threshold X , Threshold Y to zero 
 int ballX , ballY;
 double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
@@ -333,9 +331,7 @@ int main( int argc, const char** argv )
 	b2FixtureDef floorFixtureDef;
 	b2PolygonShape floorBox;
 	b2Fixture *_floorFixture;
-
 	MyContactListener *_contactListener;
-	
 	_contactListener = new MyContactListener();
 	world.SetContactListener(_contactListener);
 	cout << "Enter Start Position of Ball ( X , Y ):";
@@ -346,13 +342,11 @@ int main( int argc, const char** argv )
 	float32 timeStep = 3.0f / 30.0f;
 	int32 velocityIterations = 20;
 	int32 positionIterations = 5;
-
-	// block Blocks[BLOCKCOUNT];
+	block Blocks[BLOCKCOUNT];
 	corner Corners[CORNERCOUNT];
-	int flag = 1;
-	// int tt = 0 ;
+	bool flag = true , flag_x = true;
 	char aa = 'a';
-	// string fname;
+	char fname[5];
 	int destroyed[BLOCKCOUNT];
 	for(int dest=0;dest<BLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
@@ -447,18 +441,22 @@ int main( int argc, const char** argv )
 	if(!capture.isOpened()){
 		return -1;
 	}
-	fname.replace(0,1,1,aa);
-    VideoWriter outputVideo(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
-
-    if (!outputVideo.isOpened())
-    {
-        cout  << "Could not open the output video for write: " << endl;
-        return -1;
-    }
+	VideoWriter outputVideo("a.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
     // waitKey();
-    cout << cornertag << endl;
-	 printf("%d %d\n", (int)600, (int)800);
-	while( key != 'q' ){
+	printf("%d %d\n", (int)600, (int)800);
+	while( key != 'q' )
+	{
+		if(flag_x == false)
+		{
+			sprintf(fname, "%c.avi" , aa);
+   	 		VideoWriter outputVideo(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
+   	 		flag_x = true;
+   	 	}	
+    	if (!outputVideo.isOpened())
+   		{
+        	cout  << "Could not open the output video for write: " << endl;
+        	return -1;
+   		}
 	 	capture >> frame;
 		resize(frame, frame, size);
 		//flip(frame, frame, 1);
@@ -550,7 +548,7 @@ int main( int argc, const char** argv )
 		//rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
 		// rRect = RotatedRect(Point2f(WORLDW/2*pixel,(WORLDH-2)*pixel), Size2f(WORLDW*2*pixel/5.5, THICKNESS*2*pixel), 30);
 		// rRect.points(vertices);
-		// for (int i = 0; i < 4; i++)
+		// for (int i = 0; i < 4; i++)	
 		//     line(image, vertices[i], vertices[(i+1)%4], CV_RGB( 255, 33, 127 ), 15);
 
 		//printf("%f , %f\n", position.x*pixel,position.y*pixel);
@@ -582,31 +580,28 @@ int main( int argc, const char** argv )
 		b[2]=Point((WORLDW-THICKNESS)*pixel, 2*pixel);
 		fillConvexPoly(image , a, 3, CV_RGB(255,255,255));
 		fillConvexPoly(image, b , 3, CV_RGB(255,255,255));
-		outputVideo<<image;
+		outputVideo << image;
 		position=Ball.body->GetPosition();
 		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))		//The ball has hit the bottom floor
 			{
 				bottomhitcount++;
 			}
-		if(position.y<WORLDH-6)
-			flag = 1;
-		if(position.y>=WORLDH-6)		//Have to fix this now
+		if(position.y < WORLDH-6)
+			flag = true;
+		if(position.y >= WORLDH-6 && flag==true)		//Have to fix this now
 		{
-			if(flag)
-		 {
+		 	aa++;
+		 	flag_x = false;
+		 	outputVideo.release();
 			while(1)
 			{
 				char a = waitKey(33);
 				if(a==27) 
 				{
 					flag = 0;
-					aa++;//fname++;
-					cout << aa <<endl;
-					outputVideo.release();
 					break;
 				}
 			}
-		 }
 		}
 		 std::vector<b2Body *>::iterator pos2;
 			    for (pos2 = toDestroy.begin(); pos2 != toDestroy.end(); ++pos2) {
@@ -649,8 +644,8 @@ int main( int argc, const char** argv )
 			   
 		//if(bottomhitcount>2)break;
 		imshow( "Capture ", image );
-		//imshow("Camera ", lineimg);
-		//imshow("Camera ", threshold_output);
+		// imshow("Camera ", lineimg);
+		// imshow("Camera ", threshold_output);
 		Vec3b intensity;
 		// for(int ht=0;ht<600;ht++)
 		// {
