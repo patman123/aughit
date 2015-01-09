@@ -26,19 +26,23 @@ b2Vec2 gravity(0,0);
 bool doSleep = true;
 
 // Construct a world object, which will hold and simulate the rigid bodies.
-b2World world(gravity, doSleep);
-float pixel=40;
-int BLOCKCOUNT=14;
-double WORLDH=15;
-double WORLDW=20;
-double THICKNESS=0.2;
-b2Fixture *_paddleFixture;
-
-int BALL=1, PADDLE=2, BLOCK=3;
-
-int Threshx=0, Threshy=0;
-double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;
-int blocktag=3;
+b2World world(gravity, doSleep);	//takes in two parameters
+float pixel=40;	//value of pixel defined here
+int BLOCKCOUNT=14;	//number of blocks
+int CORNERCOUNT = 2; 	//number of corners
+double WORLDH=15;	//world height	
+double WORLDW=20;	//world width
+double THICKNESS=0.2;	//thickness defined here
+b2Fixture *_paddleFixture;	//define pointer to type b2Fixture called paddle fixture
+int BALL=1, PADDLE=2, BLOCK=3 , CORNER=4; //define different variables for different objects
+char a = 'a';
+string fname = "a.avi";
+int Threshx=0, Threshy=0;		//Set Threshold X , Threshold Y to zero 
+int ballX , ballY;
+double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
+double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
+int blocktag=3;		//block tag defined to be 3
+int cornertag =17;	//corner tag = 50
 
 struct MyContact {
     b2Fixture *fixtureA;
@@ -67,7 +71,7 @@ std::vector<MyContact>_contacts;
 class ball
 {
 public:
-	ball();
+	ball(double x, double y);
 	~ball() {};
 	b2Body* body;
 	b2Fixture *_ballFixture;
@@ -92,6 +96,15 @@ public:
 	int tag;
 };
 
+class corner
+{
+public:
+	corner();
+	~corner() {};
+	b2Body* body;
+	int tag;
+};
+
 class MyContactListener : public b2ContactListener {
  
 public:
@@ -106,12 +119,12 @@ public:
     virtual void PostSolve(b2Contact* contact, const b2ContactImpulse* impulse);
 };
 
-ball::ball()
+ball::ball(double x, double y)
 {
 	tag=1;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_dynamicBody;
-	bodyDef.position.Set(4,WORLDH-6);
+	bodyDef.position.Set(x,y);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	b2CircleShape dynamicBox;
@@ -132,10 +145,10 @@ paddle::paddle()
 	bodyDef.position.Set(4,WORLDH-2);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
-	// b2CircleShape paddleShape;
-	// paddleShape.m_radius = 1.5;
-	b2PolygonShape paddleShape;
-	paddleShape.SetAsBox(WORLDW/12, THICKNESS*2);
+	b2CircleShape paddleShape;
+	paddleShape.m_radius = 1.5;
+	// b2PolygonShape paddleShape;
+	// paddleShape.SetAsBox(WORLDW/12, THICKNESS*2);
 	b2FixtureDef fixtureDef;
 	fixtureDef.shape = &paddleShape;
 	fixtureDef.density = 10.0f;
@@ -168,6 +181,38 @@ block::block()
 	}
 };
 
+corner::corner()
+{
+	tag=cornertag;
+	cornertag++;
+	b2BodyDef bodyDef;
+	bodyDef.type = b2_staticBody;
+	if(tag<=17)
+		bodyDef.position.Set(X_CORNER,Y_CORNER);
+	else
+		bodyDef.position.Set(WORLDW-X_CORNER, Y_CORNER);
+	bodyDef.userData=(void *)tag;
+	body = world.CreateBody(&bodyDef);
+	b2Vec2 vertices[3],vertices1[3];
+	vertices[2].Set(-1 , 1);
+	vertices[1].Set( 0 , 1);
+	vertices[0].Set(-1 , 0);
+	vertices1[1].Set(1 , 1);
+	vertices1[2].Set(0, 1);
+	vertices1[0].Set(1 ,0);
+	b2PolygonShape cornerShape;
+	if(tag>17)
+		cornerShape.Set(vertices1, 3);
+	else 
+		cornerShape.Set(vertices, 3); 
+	b2FixtureDef fixtureDef;
+	fixtureDef.shape = &cornerShape;
+	fixtureDef.density = 10.0f;
+	fixtureDef.friction = 0.0f;
+	fixtureDef.restitution = 1;
+	body->CreateFixture(&fixtureDef);
+	//X_CORNER = WORLDW - X_CORNER;
+}
 
 MyContactListener::MyContactListener() : _contacts() {
 }
@@ -262,7 +307,6 @@ void mouse_callback(int event, int x, int y, int flags, void* param)
 		Threshx = x;
 		Threshy = y;
 	}
-
 }
 
 b2Vec2* getPoints(b2Vec2 pos[], double angle)
@@ -294,15 +338,21 @@ int main( int argc, const char** argv )
 	
 	_contactListener = new MyContactListener();
 	world.SetContactListener(_contactListener);
-
+	cout << "Enter Start Position of Ball ( X , Y ):";
+	cin >> ballX >> ballY;
 	b2Vec2 position;
-	ball Ball;
+	ball Ball(ballX, ballY);
 	b2Vec2 force = b2Vec2(0.3,2);
-	float32 timeStep = 1.0f / 30.0f;
-	int32 velocityIterations = 6;
+	float32 timeStep = 3.0f / 30.0f;
+	int32 velocityIterations = 20;
 	int32 positionIterations = 5;
 
-	block Blocks[BLOCKCOUNT];
+	// block Blocks[BLOCKCOUNT];
+	corner Corners[CORNERCOUNT];
+	int flag = 1;
+	// int tt = 0 ;
+	char aa = 'a';
+	// string fname;
 	int destroyed[BLOCKCOUNT];
 	for(int dest=0;dest<BLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
@@ -327,6 +377,7 @@ int main( int argc, const char** argv )
 	angle=(double *)malloc(sizeof(double));
 	int bottomhitcount=0;
 	double drawxoff=0, drawyoff=0;
+	double drawxcorner=0 , drawycorner=0;
     Mat frame,foreground,image, gameover, lineimg;
     Mat threshold_output=Mat::zeros( size, CV_8UC1 );
 	b2Body* bodyA;
@@ -396,8 +447,8 @@ int main( int argc, const char** argv )
 	if(!capture.isOpened()){
 		return -1;
 	}
-
-    VideoWriter outputVideo("Test.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
+	fname.replace(0,1,1,aa);
+    VideoWriter outputVideo(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
 
     if (!outputVideo.isOpened())
     {
@@ -405,8 +456,8 @@ int main( int argc, const char** argv )
         return -1;
     }
     // waitKey();
-
-	printf("%d %d\n", (int)600, (int)800);
+    cout << cornertag << endl;
+	 printf("%d %d\n", (int)600, (int)800);
 	while( key != 'q' ){
 	 	capture >> frame;
 		resize(frame, frame, size);
@@ -450,15 +501,15 @@ int main( int argc, const char** argv )
 		poshape = posfix->GetShape();
 		//angle = Player.body->GetAngle();
 		//cout<<angle<<"\n";
-   		if(poshape->GetType() == b2Shape::e_polygon){
-     		pospoly = (b2PolygonShape*)poshape;
-  			 }
-  		pos[0]=pospoly->GetVertex(0);
-  		pos[1]=pospoly->GetVertex(1);
-  		pos[2]=pospoly->GetVertex(2);
-  		pos[3]=pospoly->GetVertex(3);
-		newcoord.x=Threshx;
-		newcoord.y=WORLDH-2;
+ //   		if(poshape->GetType() == b2Shape::e_polygon){
+ //     		pospoly = (b2PolygonShape*)poshape;
+ //  			 }
+ //  		pos[0]=pospoly->GetVertex(0);
+ //  		pos[1]=pospoly->GetVertex(1);
+ //  		pos[2]=pospoly->GetVertex(2);
+ //  		pos[3]=pospoly->GetVertex(3);
+	 	newcoord.x=Threshx;
+	 	newcoord.y=WORLDH-2;
 		measurement(0)=newcoord.x;
 		measurement(1)=*angle;
 		Mat prediction = KF.predict();
@@ -470,30 +521,30 @@ int main( int argc, const char** argv )
 		newcoord.x=measPt.x;
 
 		newcoord.x=newcoord.x/pixel;
-		//cout<<newcoord.x<<"\n";
-		*angle=0;
-		posp=getPoints(pos, *angle);
+	// 	//cout<<newcoord.x<<"\n";
+	// 	*angle=0;
+	// 	posp=getPoints(pos, *angle);
 
-  		for(int c=0;c<4;c++)
-  		{
-  			rook_points[0][c]=Point((position.x-posp[c].x)*pixel, (position.y-posp[c].y)*pixel);
-  			//cout<<(position.x-posp[c].x)*pixel<<" "<< (position.y-posp[c].y)*pixel<<"\n";
-  			//cout<<posp[c].x<<" "<<posp[c].y<<"\n";
-  		}
-  		// for(int c=0;c<4;c++)
-  		// {		
-  		// cout<<(position.x-posp[c].x)*pixel<<" "<<(position.y-posp[c].y)*pixel<<"\n";
-  		// }
-  		//cout<<"\n";
-		const Point* ppt[1]= {rook_points[0]};
+ //  		for(int c=0;c<4;c++)
+ //  		{
+ //  			rook_points[0][c]=Point((position.x-posp[c].x)*pixel, (position.y-posp[c].y)*pixel);
+ //  			//cout<<(position.x-posp[c].x)*pixel<<" "<< (position.y-posp[c].y)*pixel<<"\n";
+ //  			//cout<<posp[c].x<<" "<<posp[c].y<<"\n";
+ //  		}
+ //  		// for(int c=0;c<4;c++)
+ //  		// {		
+ //  		// cout<<(position.x-posp[c].x)*pixel<<" "<<(position.y-posp[c].y)*pixel<<"\n";
+ //  		// }
+ //  		//cout<<"\n";
+	// 	const Point* ppt[1]= {rook_points[0]};
 		newcoord.x=Threshx/pixel;
-		if(newcoord.x<(WORLDW-1.7-THICKNESS)&&newcoord.x>(1.7+THICKNESS)){
-		Player.body->SetTransform(newcoord, (float)*angle);
-	}
-	 	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
+	 	if(newcoord.x<(WORLDW-1.7-THICKNESS)&&newcoord.x>(1.7+THICKNESS)){
+	 	Player.body->SetTransform(newcoord, (float)*angle);
+	 }
+	//  	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
 
-		//ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
-		//ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
+		ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
+		ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
 		// waitKey();
 		//cout<<position.x<<" "<<position.y<<"\n";
 		//rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
@@ -505,11 +556,14 @@ int main( int argc, const char** argv )
 		//printf("%f , %f\n", position.x*pixel,position.y*pixel);
 
 		//position=Player.body->GetPosition();
-		drawxoff=0;
+		drawxoff=0; 
 		drawyoff=0;
+		drawxcorner=0; 
+		drawycorner=0;
 		for(int bc=0;bc<BLOCKCOUNT;bc++)
 		{
 			if(destroyed[bc]==0)
+
 			{
 				rectangle( image , Point((drawxoff+WORLDW/12)*pixel, (drawyoff+WORLDH/15)*pixel),Point((drawxoff+WORLDW/6)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);	
 			}
@@ -519,12 +573,41 @@ int main( int argc, const char** argv )
 				drawyoff+=2*WORLDH/15;
 			}
 		}
+		Point a[3],b[3];
+		a[0]=Point(THICKNESS*pixel , THICKNESS*pixel);
+		a[1]=Point(2*pixel , THICKNESS*pixel);
+		a[2]=Point(THICKNESS*pixel, 2*pixel);
+		b[0]=Point((WORLDW-THICKNESS)*pixel , THICKNESS*pixel);
+		b[1]=Point((WORLDW-2)*pixel , THICKNESS*pixel);
+		b[2]=Point((WORLDW-THICKNESS)*pixel, 2*pixel);
+		fillConvexPoly(image , a, 3, CV_RGB(255,255,255));
+		fillConvexPoly(image, b , 3, CV_RGB(255,255,255));
+		outputVideo<<image;
 		position=Ball.body->GetPosition();
-		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))
+		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))		//The ball has hit the bottom floor
 			{
 				bottomhitcount++;
 			}
-
+		if(position.y<WORLDH-6)
+			flag = 1;
+		if(position.y>=WORLDH-6)		//Have to fix this now
+		{
+			if(flag)
+		 {
+			while(1)
+			{
+				char a = waitKey(33);
+				if(a==27) 
+				{
+					flag = 0;
+					aa++;//fname++;
+					cout << aa <<endl;
+					outputVideo.release();
+					break;
+				}
+			}
+		 }
+		}
 		 std::vector<b2Body *>::iterator pos2;
 			    for (pos2 = toDestroy.begin(); pos2 != toDestroy.end(); ++pos2) {
 			    	
@@ -569,15 +652,14 @@ int main( int argc, const char** argv )
 		//imshow("Camera ", lineimg);
 		//imshow("Camera ", threshold_output);
 		Vec3b intensity;
-		for(int ht=0;ht<600;ht++)
-		{
-			for(int wd=0;wd<800;wd++)
-			{
-				intensity = image.at<Vec3b>(ht, wd);
-				printf("%d %d %d\n", intensity.val[0], intensity.val[1], intensity.val[2]);
-			}
-		}
-		outputVideo<<image;
+		// for(int ht=0;ht<600;ht++)
+		// {
+		// 	for(int wd=0;wd<800;wd++)
+		// 	{
+		// 		intensity = image.at<Vec3b>(ht, wd);
+		// 		// printf("%d %d %d\n", intensity.val[0], intensity.val[1], intensity.val[2]);
+		// 	}
+		// }
 	}
 
 	resize(gameover, gameover ,size);
