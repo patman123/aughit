@@ -443,13 +443,13 @@ int main( int argc, const char** argv )
 	}
 	VideoWriter outputVideo("a.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
     // waitKey();
-	printf("%d %d\n", (int)600, (int)800);
+	//printf("%d %d\n", (int)600, (int)800);
 	while( key != 'q' )
 	{
 		if(flag_x == false)
 		{
 			sprintf(fname, "%c.avi" , aa);
-   	 		VideoWriter outputVideo(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
+   	 		outputVideo.open(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
    	 		flag_x = true;
    	 	}	
     	if (!outputVideo.isOpened())
