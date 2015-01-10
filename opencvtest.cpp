@@ -585,7 +585,7 @@ int main( int argc, const char** argv )
 		b[1]=Point((WORLDW-2)*pixel , THICKNESS*pixel);
 		b[2]=Point((WORLDW-THICKNESS)*pixel, 2*pixel);
 		fillConvexPoly(image , a, 3, CV_RGB(255,255,255));
-		fillConvexPoly(image, b , 3, CV_RGB(255,255,255));
+		fillConvexPoly(image , b, 3, CV_RGB(255,255,255));
 		outputVideo << image;
 		position=Ball.body->GetPosition();
 		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))		//The ball has hit the bottom floor
@@ -614,8 +614,7 @@ int main( int argc, const char** argv )
 			    	
 			        b2Body *body = *pos2;
 			        world.DestroyBody(body);
-
-			    
+			        
 	    }
 	    toDestroy.clear();
 		std::vector<MyContact>::iterator pos;
@@ -628,7 +627,6 @@ int main( int argc, const char** argv )
 			if (bodyA->GetUserData() != NULL && bodyB->GetUserData() != NULL) {
 				bA=(int)bodyA->GetUserData();
 				bB=(int)bodyB->GetUserData();
-			 			//cout<<bA<<" "<<bB<<"\n";
 			            //Sprite A = ball, Sprite B = Block
 			            if (bA == 1 && bB > 2) {
 			            #ifdef ROUND2

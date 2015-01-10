@@ -45,7 +45,7 @@ double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
 double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
 int blocktag=3;		//block tag defined to be 3
 int movingblocktag =19;
-int cornertag =17;	//corner tag = 50
+int cornertag =17;	//corner tag = 17
 
 struct MyContact {
     b2Fixture *fixtureA;
@@ -398,7 +398,7 @@ int main( int argc, const char** argv )
 	for(int dest=0;dest<BLOCKCOUNT+MBLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
 	int bA=0, bB=0;
-	int drawveloff = 0.1;
+	int drawveloff = WORLDW/20;
 	b2Vec2 locationWorld;
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
@@ -610,22 +610,22 @@ int main( int argc, const char** argv )
 		drawyoff=0;
 		drawxcorner=0; 
 		drawycorner=0;
-		mpos = MovingBlocks[MBLOCKCOUNT-1].body->GetPosition();
-		if(mpos.x>=7*WORLDW/48)
+		mpos = MovingBlocks[MBLOCKCOUNT-1].body->GetPosition();		//Get position of last moving block
+		if(mpos.x>=7*WORLDW/48)			//Check if it is greater than WORLDW-0.5 
 		{
 			for (int i = 0; i < MBLOCKCOUNT; ++i)
 			{
-				MovingBlocks[i].setVelocity(-1,0);
+				MovingBlocks[i].setVelocity(-1,0);		//If yes, then set velocity , 1 unit/second towards left
 			}
 		}
 		else
 		{
 			for (int i = 0; i < MBLOCKCOUNT; ++i)
 			{
-				MovingBlocks[i].setVelocity(1,0);
+				MovingBlocks[i].setVelocity(1,0);		//Else ,  set velocity , 1 unit/second towards right
 			}
 		}
-		for(int bc=0;bc<BLOCKCOUNT;bc++)
+		for(int bc=0;bc<BLOCKCOUNT;bc++)		//Loop to draw Static Blocks
 		{
 			if(destroyed[bc]==0)
 
@@ -642,6 +642,10 @@ int main( int argc, const char** argv )
 				drawyoff+=2*WORLDH/15;
 			}
 		}
+		if(drawveloff + drawxoff + WORLDW/6 < WORLDW - THICKNESS)
+			drawveloff += WORLDW/20;
+		else 
+			drawveloff = WORLDW/8;
 		for(int bc=0;bc<MBLOCKCOUNT;bc++)
 		{
 
@@ -655,10 +659,6 @@ int main( int argc, const char** argv )
 				drawyoff+=2*WORLDH/15;
 			}
 		}
-		if(drawveloff+drawxoff+WORLDW/6 < WORLDW - THICKNESS)
-			drawveloff+=0.1;
-		else 
-			drawveloff=0.1;
 		Point a[3],b[3];
 		a[0]=Point(THICKNESS*pixel , THICKNESS*pixel);
 		a[1]=Point(2*pixel , THICKNESS*pixel);
