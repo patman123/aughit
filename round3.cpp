@@ -14,6 +14,7 @@
 #include <queue>
 
 #define ROUND2
+#define RECTANGULAR
 
 using namespace std;
 using namespace cv;
@@ -42,6 +43,7 @@ int ballX , ballY;
 double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
 double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
 int blocktag=3;		//block tag defined to be 3
+int movingblocktag =19;
 int cornertag =17;	//corner tag = 50
 
 struct MyContact {
@@ -96,6 +98,15 @@ public:
 	int tag;
 };
 
+class movingblock
+{
+	public:
+	movingblock();
+	~movingblock() {};
+	b2Body* body;
+	int tag;
+};
+
 class corner
 {
 public:
@@ -145,10 +156,14 @@ paddle::paddle()
 	bodyDef.position.Set(4,WORLDH-2);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
+	#ifdef CIRCULAR
 	b2CircleShape paddleShape;
 	paddleShape.m_radius = 1.5;
-	// b2PolygonShape paddleShape;
-	// paddleShape.SetAsBox(WORLDW/12, THICKNESS*2);
+	#endif
+	#ifdef RECTANGULAR
+	b2PolygonShape paddleShape;
+	paddleShape.SetAsBox(WORLDW/12, THICKNESS*2);
+	#endif
 	b2FixtureDef fixtureDef;
 	fixtureDef.shape = &paddleShape;
 	fixtureDef.density = 10.0f;
@@ -181,16 +196,38 @@ block::block()
 	}
 };
 
+movingblock::movingblock()
+{
+	tag=movingblocktag;
+	movingblocktag++;
+	b2BodyDef bodyDef;
+	bodyDef.type = b2_dynamicBody;
+	bodyDef.position.Set(XOFFSET, YOFFSET);
+	bodyDef.userData=(void *)tag;
+	body = world.CreateBody(&bodyDef);
+	b2PolygonShape blockShape;
+	blockShape.SetAsBox(WORLDW/24, WORLDH/30);
+	b2FixtureDef fixtureDef;
+	fixtureDef.shape = &blockShape;
+	fixtureDef.density = 10.0f;
+	fixtureDef.friction = 0.0f;
+	fixtureDef.restitution = 1;
+	body->CreateFixture(&fixtureDef);
+	XOFFSET+=WORLDW/8;
+	if(XOFFSET>WORLDW-0.5){
+		XOFFSET=WORLDW/8;
+		YOFFSET+=2*WORLDH/15;
+	}
+};
+
+
 corner::corner()
 {
 	tag=cornertag;
 	cornertag++;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_staticBody;
-	if(tag<=17)
-		bodyDef.position.Set(X_CORNER,Y_CORNER);
-	else
-		bodyDef.position.Set(WORLDW-X_CORNER, Y_CORNER);
+	bodyDef.position.Set(X_CORNER,Y_CORNER);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	b2Vec2 vertices[3],vertices1[3];
@@ -211,8 +248,8 @@ corner::corner()
 	fixtureDef.friction = 0.0f;
 	fixtureDef.restitution = 1;
 	body->CreateFixture(&fixtureDef);
-	//X_CORNER = WORLDW - X_CORNER;
-}
+	X_CORNER = WORLDW - X_CORNER;
+};
 
 MyContactListener::MyContactListener() : _contacts() {
 }
@@ -501,13 +538,15 @@ int main( int argc, const char** argv )
 		poshape = posfix->GetShape();
 		//angle = Player.body->GetAngle();
 		//cout<<angle<<"\n";
- //   		if(poshape->GetType() == b2Shape::e_polygon){
- //     		pospoly = (b2PolygonShape*)poshape;
- //  			 }
- //  		pos[0]=pospoly->GetVertex(0);
- //  		pos[1]=pospoly->GetVertex(1);
- //  		pos[2]=pospoly->GetVertex(2);
- //  		pos[3]=pospoly->GetVertex(3);
+		#ifdef RECTANGULAR
+   		if(poshape->GetType() == b2Shape::e_polygon){
+     		pospoly = (b2PolygonShape*)poshape;
+  			 }
+  		pos[0]=pospoly->GetVertex(0);
+  		pos[1]=pospoly->GetVertex(1);
+  		pos[2]=pospoly->GetVertex(2);
+  		pos[3]=pospoly->GetVertex(3);
+  		#endif
 	 	newcoord.x=Threshx;
 	 	newcoord.y=WORLDH-2;
 		measurement(0)=newcoord.x;
@@ -542,17 +581,19 @@ int main( int argc, const char** argv )
 	 	Player.body->SetTransform(newcoord, (float)*angle);
 	 }
 	//  	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
-
+	 	#ifdef CIRCULAR
 		ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
 		ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
+		#endif
 		// waitKey();
 		//cout<<position.x<<" "<<position.y<<"\n";
-		//rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
+		// #ifdef RECTANGULAR
+		// rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
 		// rRect = RotatedRect(Point2f(WORLDW/2*pixel,(WORLDH-2)*pixel), Size2f(WORLDW*2*pixel/5.5, THICKNESS*2*pixel), 30);
 		// rRect.points(vertices);
 		// for (int i = 0; i < 4; i++)	
 		//     line(image, vertices[i], vertices[(i+1)%4], CV_RGB( 255, 33, 127 ), 15);
-
+		// #endif
 		//printf("%f , %f\n", position.x*pixel,position.y*pixel);
 
 		//position=Player.body->GetPosition();
@@ -678,3 +719,4 @@ int main( int argc, const char** argv )
 	waitKey(2000);
 	capture.release();
 }
+	
