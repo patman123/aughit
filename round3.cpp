@@ -14,7 +14,7 @@
 #include <queue>
 
 #define ROUND2
-#define RECTANGULAR
+#define CIRCULAR
 
 using namespace std;
 using namespace cv;
@@ -32,6 +32,7 @@ bool doSleep = true;
 b2World world(gravity, doSleep);	//takes in two parameters
 float pixel=40;	//value of pixel defined here
 int BLOCKCOUNT=14;	//number of blocks
+int MBLOCKCOUNT=4;
 int CORNERCOUNT = 2; 	//number of corners
 double WORLDH=15;	//world height	
 double WORLDW=20;	//world width
@@ -102,6 +103,7 @@ class movingblock
 {
 	public:
 	movingblock();
+	setVelocity(int velx , int vely);
 	~movingblock() {};
 	b2Body* body;
 	int tag;
@@ -201,7 +203,7 @@ movingblock::movingblock()
 	tag=movingblocktag;
 	movingblocktag++;
 	b2BodyDef bodyDef;
-	bodyDef.type = b2_dynamicBody;
+	bodyDef.type = b2_kinematicBody;
 	bodyDef.position.Set(XOFFSET, YOFFSET);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
@@ -219,6 +221,11 @@ movingblock::movingblock()
 		YOFFSET+=2*WORLDH/15;
 	}
 };
+
+movingblock::setVelocity(int velx, int vely)
+{
+	body->SetLinearVelocity(b2Vec2(velx,vely));
+}
 
 
 corner::corner()
@@ -375,21 +382,23 @@ int main( int argc, const char** argv )
 	world.SetContactListener(_contactListener);
 	cout << "Enter Start Position of Ball ( X , Y ):";
 	cin >> ballX >> ballY;
-	b2Vec2 position;
+	b2Vec2 position , mpos;
 	ball Ball(ballX, ballY);
 	b2Vec2 force = b2Vec2(0.3,2);
 	float32 timeStep = 3.0f / 30.0f;
 	int32 velocityIterations = 20;
 	int32 positionIterations = 5;
 	block Blocks[BLOCKCOUNT];
+	movingblock MovingBlocks[MBLOCKCOUNT];
 	corner Corners[CORNERCOUNT];
 	bool flag = true , flag_x = true;
 	char aa = 'a';
 	char fname[5];
-	int destroyed[BLOCKCOUNT];
-	for(int dest=0;dest<BLOCKCOUNT;dest++)destroyed[dest]=0;
+	int destroyed[BLOCKCOUNT+MBLOCKCOUNT];
+	for(int dest=0;dest<BLOCKCOUNT+MBLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
 	int bA=0, bB=0;
+	int drawveloff = 0.1;
 	b2Vec2 locationWorld;
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
@@ -601,6 +610,21 @@ int main( int argc, const char** argv )
 		drawyoff=0;
 		drawxcorner=0; 
 		drawycorner=0;
+		mpos = MovingBlocks[MBLOCKCOUNT-1].body->GetPosition();
+		if(mpos.x>=7*WORLDW/48)
+		{
+			for (int i = 0; i < MBLOCKCOUNT; ++i)
+			{
+				MovingBlocks[i].setVelocity(-1,0);
+			}
+		}
+		else
+		{
+			for (int i = 0; i < MBLOCKCOUNT; ++i)
+			{
+				MovingBlocks[i].setVelocity(1,0);
+			}
+		}
 		for(int bc=0;bc<BLOCKCOUNT;bc++)
 		{
 			if(destroyed[bc]==0)
@@ -618,6 +642,23 @@ int main( int argc, const char** argv )
 				drawyoff+=2*WORLDH/15;
 			}
 		}
+		for(int bc=0;bc<MBLOCKCOUNT;bc++)
+		{
+
+			if(destroyed[bc+BLOCKCOUNT]==0)
+			{
+					rectangle( image , Point((drawveloff+drawxoff+WORLDW/12)*pixel, (drawyoff+WORLDH/15)*pixel),Point((drawveloff+drawxoff+WORLDW/6)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);
+			}
+			drawxoff+=WORLDW/8;
+			if(bc%7==6){
+				drawxoff=0;
+				drawyoff+=2*WORLDH/15;
+			}
+		}
+		if(drawveloff+drawxoff+WORLDW/6 < WORLDW - THICKNESS)
+			drawveloff+=0.1;
+		else 
+			drawveloff=0.1;
 		Point a[3],b[3];
 		a[0]=Point(THICKNESS*pixel , THICKNESS*pixel);
 		a[1]=Point(2*pixel , THICKNESS*pixel);
@@ -645,7 +686,7 @@ int main( int argc, const char** argv )
 				char a = waitKey(33);
 				if(a==27) 
 				{
-					flag = 0;
+					flag = false;
 					break;
 				}
 			}
