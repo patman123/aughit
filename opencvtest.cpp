@@ -451,11 +451,7 @@ int main( int argc, const char** argv )
 		if(flag_x == false)
 		{
 			sprintf(fname, "%c.avi" , aa);
-<<<<<<< HEAD
 			outputVideo.open(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
-=======
-   	 		outputVideo.open(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
->>>>>>> 7f99a780a27ac475d59a65b3ee3eec7926ed1c09
    	 		flag_x = true;
    	 	}	
     	if (!outputVideo.isOpened())
