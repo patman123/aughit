@@ -103,7 +103,7 @@ class movingblock
 {
 	public:
 	movingblock();
-	setVelocity(int velx , int vely);
+	setVelocity(double velx , double vely);
 	~movingblock() {};
 	b2Body* body;
 	int tag;
@@ -222,7 +222,7 @@ movingblock::movingblock()
 	}
 };
 
-movingblock::setVelocity(int velx, int vely)
+movingblock::setVelocity(double velx, double vely)
 {
 	body->SetLinearVelocity(b2Vec2(velx,vely));
 }
@@ -398,7 +398,7 @@ int main( int argc, const char** argv )
 	for(int dest=0;dest<BLOCKCOUNT+MBLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
 	int bA=0, bB=0;
-	int drawveloff = WORLDW/20;
+	double drawveloff = 0.05;
 	b2Vec2 locationWorld;
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
@@ -611,18 +611,20 @@ int main( int argc, const char** argv )
 		drawxcorner=0; 
 		drawycorner=0;
 		mpos = MovingBlocks[MBLOCKCOUNT-1].body->GetPosition();		//Get position of last moving block
-		if(mpos.x>=7*WORLDW/48)			//Check if it is greater than WORLDW-0.5 
+		if(mpos.x>=7*WORLDW/8)			//Check if it is greater than WORLDW-0.5 
 		{
-			for (int i = 0; i < MBLOCKCOUNT; ++i)
+			for (int i = 0; i < MBLOCKCOUNT; ++i, drawxoff+=WORLDW/8)
 			{
-				MovingBlocks[i].setVelocity(-1,0);		//If yes, then set velocity , 1 unit/second towards left
+				MovingBlocks[i].body->SetTransform(b2Vec2(drawxoff+WORLDW/8,WORLDH/10+4*WORLDH/15),0);	//If yes, then set velocity , 1 unit/second towards left
+				MovingBlocks[i].setVelocity(0.5,0);
 			}
+			drawxoff = 0;
 		}
 		else
 		{
 			for (int i = 0; i < MBLOCKCOUNT; ++i)
 			{
-				MovingBlocks[i].setVelocity(1,0);		//Else ,  set velocity , 1 unit/second towards right
+				MovingBlocks[i].setVelocity(0.5,0);		//Else ,  set velocity , 1 unit/second towards right
 			}
 		}
 		for(int bc=0;bc<BLOCKCOUNT;bc++)		//Loop to draw Static Blocks
@@ -643,9 +645,9 @@ int main( int argc, const char** argv )
 			}
 		}
 		if(drawveloff + drawxoff + WORLDW/6 < WORLDW - THICKNESS)
-			drawveloff += WORLDW/20;
+			drawveloff += 0.05;
 		else 
-			drawveloff = WORLDW/8;
+			drawveloff = 0.05;
 		for(int bc=0;bc<MBLOCKCOUNT;bc++)
 		{
 
