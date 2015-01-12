@@ -44,8 +44,9 @@ int ballX , ballY;
 double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
 double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
 int blocktag=3;		//block tag defined to be 3
-int movingblocktag =19;
-int cornertag =17;	//corner tag = 17
+int movingblocktag =17;
+int cornertag =50;	//corner tag = 17
+double movvel=0.5;
 
 struct MyContact {
     b2Fixture *fixtureA;
@@ -220,6 +221,7 @@ movingblock::movingblock()
 		XOFFSET=WORLDW/8;
 		YOFFSET+=2*WORLDH/15;
 	}
+	body->SetLinearVelocity(b2Vec2(0.5,0));
 };
 
 movingblock::setVelocity(double velx, double vely)
@@ -398,7 +400,6 @@ int main( int argc, const char** argv )
 	for(int dest=0;dest<BLOCKCOUNT+MBLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
 	int bA=0, bB=0;
-	double drawveloff = 0.05;
 	b2Vec2 locationWorld;
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
@@ -415,7 +416,9 @@ int main( int argc, const char** argv )
 	int npt[]={4};
 	b2Vec2 newcoord;
 	double *angle;
-	
+	int movingflag=1;
+	int framecounter=0;
+
 	angle=(double *)malloc(sizeof(double));
 	int bottomhitcount=0;
 	double drawxoff=0, drawyoff=0;
@@ -611,22 +614,46 @@ int main( int argc, const char** argv )
 		drawxcorner=0; 
 		drawycorner=0;
 		mpos = MovingBlocks[MBLOCKCOUNT-1].body->GetPosition();		//Get position of last moving block
-		if(mpos.x>=7*WORLDW/8)			//Check if it is greater than WORLDW-0.5 
+		//b2Vec2 mp=MovingBlocks[0].body->GetPosition();
+		//cout<<mpos.x<<" "<<mpos.y<<"\n";
+		//waitKey();
+		framecounter+=movingflag;
+		double temp_off;
+		temp_off=0.05*framecounter;
+		if(mpos.x>WORLDW-2)
 		{
-			for (int i = 0; i < MBLOCKCOUNT; ++i, drawxoff+=WORLDW/8)
+			movingflag=-1;
+
+			for (int i=0; i<MBLOCKCOUNT; i++)
 			{
-				MovingBlocks[i].body->SetTransform(b2Vec2(drawxoff+WORLDW/8,WORLDH/10+4*WORLDH/15),0);	//If yes, then set velocity , 1 unit/second towards left
-				MovingBlocks[i].setVelocity(0.5,0);
+				MovingBlocks[i].body->SetLinearVelocity(b2Vec2((-1)*movvel,0));
 			}
-			drawxoff = 0;
 		}
-		else
+		else if(mpos.x<2)
 		{
-			for (int i = 0; i < MBLOCKCOUNT; ++i)
+
+			movingflag=1;
+			for (int i=0; i<MBLOCKCOUNT; i++)
 			{
-				MovingBlocks[i].setVelocity(0.5,0);		//Else ,  set velocity , 1 unit/second towards right
+				MovingBlocks[i].body->SetLinearVelocity(b2Vec2(movvel,0));
 			}
 		}
+		// if(mpos.x>=WORLDW-2)			//Check if it is greater than WORLDW-0.5 
+		// {
+		// 	for (int i = 0; i < MBLOCKCOUNT; ++i, drawxoff+=WORLDW/8)
+		// 	{
+		// 		MovingBlocks[i].body->SetTransform(b2Vec2(drawxoff+WORLDW/8,WORLDH/10+4*WORLDH/15),0);	//If yes, then set velocity , 1 unit/second towards left
+		// 		MovingBlocks[i].setVelocity(0.5,0);
+		// 	}
+		// 	drawxoff = 0;
+		// }
+		// else
+		// {
+		// 	for (int i = 0; i < MBLOCKCOUNT; ++i)
+		// 	{
+		// 		MovingBlocks[i].setVelocity(0.5,0);		//Else ,  set velocity , 1 unit/second towards right
+		// 	}
+		// }
 		for(int bc=0;bc<BLOCKCOUNT;bc++)		//Loop to draw Static Blocks
 		{
 			if(destroyed[bc]==0)
@@ -644,19 +671,16 @@ int main( int argc, const char** argv )
 				drawyoff+=2*WORLDH/15;
 			}
 		}
-		if(drawveloff + drawxoff + WORLDW/6 < WORLDW - THICKNESS)
-			drawveloff += 0.05;
-		else 
-			drawveloff = 0.05;
 		for(int bc=0;bc<MBLOCKCOUNT;bc++)
 		{
-
+				
 			if(destroyed[bc+BLOCKCOUNT]==0)
 			{
-					rectangle( image , Point((drawveloff+drawxoff+WORLDW/12)*pixel, (drawyoff+WORLDH/15)*pixel),Point((drawveloff+drawxoff+WORLDW/6)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);
+				rectangle( image , Point((temp_off+drawxoff+WORLDW/12)*pixel, (drawyoff+WORLDH/15)*pixel),Point((temp_off+drawxoff+WORLDW/6)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);
 			}
 			drawxoff+=WORLDW/8;
 			if(bc%7==6){
+			//cout<<drawxoff<<" lolwa "<<drawyoff<<"\n";
 				drawxoff=0;
 				drawyoff+=2*WORLDH/15;
 			}
@@ -712,7 +736,8 @@ int main( int argc, const char** argv )
 			if (bodyA->GetUserData() != NULL && bodyB->GetUserData() != NULL) {
 				bA=(int)bodyA->GetUserData();
 				bB=(int)bodyB->GetUserData();
-			 			//cout<<bA<<" "<<bB<<"\n";
+			 			cout<<bA<<" "<<bB<<"\n";
+			 			//waitKey();
 			            //Sprite A = ball, Sprite B = Block
 			            if (bA == 1 && bB > 2) {
 			            #ifdef ROUND2
