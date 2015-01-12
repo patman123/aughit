@@ -43,6 +43,9 @@ double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
 double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
 int blocktag=3;		//block tag defined to be 3
 int cornertag =17;	//corner tag = 50
+char* source_window = "Camera";
+int maxCorners = 4;
+int maxTrackbar = 100;
 
 struct MyContact {
     b2Fixture *fixtureA;
@@ -324,6 +327,45 @@ b2Vec2* getPoints(b2Vec2 pos[], double angle)
 	//cout<<angle<<"\n";
 	return newp;
 }
+
+void goodFeaturesToTrack_Demo(Mat src,int, void* )
+{
+  if( maxCorners < 1 ) { maxCorners = 1; }
+
+  /// Parameters for Shi-Tomasi algorithm
+  vector<Point2f> corners;
+  double qualityLevel = 0.01;
+  double minDistance = 10;
+  int blockSize = 3;
+  bool useHarrisDetector = false;
+  double k = 0.04;
+
+  Mat copy = src.clone();
+  Mat src_gray;
+  cvtColor (src, src_gray , CV_BGR2GRAY);
+  /// Apply corner detection
+  goodFeaturesToTrack( src_gray,
+               corners,
+               maxCorners,
+               qualityLevel,
+               minDistance,
+               Mat(),
+               blockSize,
+               useHarrisDetector,
+               k );
+
+
+  /// Draw corners detected
+  cout<<"** Number of corners detected: "<<corners.size()<<endl;
+  int r = 4;
+  for( int i = 0; i < corners.size(); i++ )
+     { circle( copy, corners[i], r, Scalar(rng.uniform(0,255), rng.uniform(0,255),
+              rng.uniform(0,255)), -1, 8, 0 ); }
+
+  /// Show what you got
+  namedWindow( source_window, CV_WINDOW_AUTOSIZE );
+  imshow( source_window, copy );
+}
  
  
 int main( int argc, const char** argv )
@@ -430,11 +472,11 @@ int main( int argc, const char** argv )
 	
 	//namedWindow( "Lines ", CV_WINDOW_AUTOSIZE);
 	namedWindow( "Capture ", CV_WINDOW_AUTOSIZE);
-    //namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
+    namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
     setMouseCallback("Capture ", mouse_callback, NULL);
-	// cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
-	// cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
-	// cvCreateTrackbar("Threshold Blue","Camera ",&c3,255); 
+	cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
+	cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
+	cvCreateTrackbar("Threshold Blue","Camera ",&c3,255); 
 	frame=cvLoadImage("test.jpg");
 	gameover=cvLoadImageM("gameover.jpg");
 
@@ -443,14 +485,14 @@ int main( int argc, const char** argv )
 	if(!capture.isOpened()){
 		return -1;
 	}
-	VideoWriter outputVideo("a.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
+	VideoWriter outputVideo("./Video/a.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
     // waitKey();
 	//printf("%d %d\n", (int)600, (int)800);
 	while( key != 'q' )
 	{
 		if(flag_x == false)
 		{
-			sprintf(fname, "%c.avi" , aa);
+			sprintf(fname, "./Video/%c.avi" , aa);
 			outputVideo.open(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
    	 		flag_x = true;
    	 	}	
@@ -462,10 +504,10 @@ int main( int argc, const char** argv )
 	 	capture >> frame;
 		resize(frame, frame, size);
 		//flip(frame, frame, 1);
-
+		goodFeaturesToTrack_Demo( frame , 0 , 0);
 		key=waitKey(33);
-		//threshold_output=frame.clone();
-		//threshold_output = getbox(frame, c1, c2, c3); 
+		// threshold_output=frame.clone();
+		// threshold_output = getbox(frame, c1, c2, c3); 
 		lineimg=getbox(frame, c1, c2, c3, angle, &newcoord.x); 
 		//cout<<newcoord.x<<"\n";
    		//GetBlobs(threshold_output,blobs);
@@ -627,8 +669,6 @@ int main( int argc, const char** argv )
 			if (bodyA->GetUserData() != NULL && bodyB->GetUserData() != NULL) {
 				bA=(int)bodyA->GetUserData();
 				bB=(int)bodyB->GetUserData();
-			 			// cout<<bA<<" "<<bB<<"\n";
-			 			// waitKey();
 			            //Sprite A = ball, Sprite B = Block
 			            if (bA == 1 && bB > 2) {
 			            #ifdef ROUND2
@@ -660,7 +700,7 @@ int main( int argc, const char** argv )
 			   
 		//if(bottomhitcount>2)break;
 		imshow( "Capture ", image );
-		// imshow("Camera ", lineimg);
+		imshow("Camera ", lineimg);
 		// imshow("Camera ", threshold_output);
 		Vec3b intensity;
 		// for(int ht=0;ht<600;ht++)
