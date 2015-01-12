@@ -627,8 +627,8 @@ int main( int argc, const char** argv )
 			if (bodyA->GetUserData() != NULL && bodyB->GetUserData() != NULL) {
 				bA=(int)bodyA->GetUserData();
 				bB=(int)bodyB->GetUserData();
-			 			cout<<bA<<" "<<bB<<"\n";
-			 			waitKey();
+			 			// cout<<bA<<" "<<bB<<"\n";
+			 			// waitKey();
 			            //Sprite A = ball, Sprite B = Block
 			            if (bA == 1 && bB > 2) {
 			            #ifdef ROUND2
