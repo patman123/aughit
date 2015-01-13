@@ -14,6 +14,9 @@
 #include <queue>
 
 #define ROUND2
+#define CAMERAFEED
+#define CAM_INDEX 1
+#define PI 3.14159265
 
 using namespace std;
 using namespace cv;
@@ -328,7 +331,7 @@ b2Vec2* getPoints(b2Vec2 pos[], double angle)
 	return newp;
 }
 
-void goodFeaturesToTrack_Demo(Mat src,int, void* )
+double goodFeaturesToTrack_Demo(Mat src,int, void* )
 {
   if( maxCorners < 1 ) { maxCorners = 1; }
 
@@ -337,14 +340,14 @@ void goodFeaturesToTrack_Demo(Mat src,int, void* )
   double qualityLevel = 0.01;
   double minDistance = 10;
   int blockSize = 3;
-  bool useHarrisDetector = false;
+  bool useHarrisDetector = true;
   double k = 0.04;
-
+  double slope = 0.0;
   Mat copy = src.clone();
   Mat src_gray;
-  cvtColor (src, src_gray , CV_BGR2GRAY);
+// cvtColor (src, src_gray , CV_BGR2GRAY);
   /// Apply corner detection
-  goodFeaturesToTrack( src_gray,
+  goodFeaturesToTrack( /*src_gray*/src,
                corners,
                maxCorners,
                qualityLevel,
@@ -354,17 +357,26 @@ void goodFeaturesToTrack_Demo(Mat src,int, void* )
                useHarrisDetector,
                k );
 
-
   /// Draw corners detected
   cout<<"** Number of corners detected: "<<corners.size()<<endl;
   int r = 4;
+  //cout << "(" << corners[0].x << ","<<  corners[0].y << ") " << " " << "(" << corners[1].x << ","<<  corners[1].y << ") " << " " << "(" << corners[2].x << ","<<  corners[2].y << ") " << " " << "(" << corners[3].x << ","<<  corners[3].y << ") " << " "; 
+  if(corners.size()>=4)
+  	{
+  		slope = (corners[1].y-corners[0].y)/(corners[1].x-corners[0].x);
+  		cout << slope << endl;
+  	}
   for( int i = 0; i < corners.size(); i++ )
-     { circle( copy, corners[i], r, Scalar(rng.uniform(0,255), rng.uniform(0,255),
+     {  cout << corners[i].x << " " <<corners[i].y << endl;  
+     	circle( copy, corners[i], r, Scalar(rng.uniform(0,255), rng.uniform(0,255),
               rng.uniform(0,255)), -1, 8, 0 ); }
 
   /// Show what you got
+  #ifdef CAMERAFEED
   namedWindow( source_window, CV_WINDOW_AUTOSIZE );
   imshow( source_window, copy );
+  #endif
+  return slope;
 }
  
  
@@ -398,7 +410,7 @@ int main( int argc, const char** argv )
 	b2Vec2 locationWorld;
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
-	int c1=218, c2=46, c3=64;
+	int c1=228, c2=44, c3=83;
 	RotatedRect rRect;
 	Point2f vertices[4];
 	vector<int> pospad;
@@ -472,16 +484,18 @@ int main( int argc, const char** argv )
 	
 	//namedWindow( "Lines ", CV_WINDOW_AUTOSIZE);
 	namedWindow( "Capture ", CV_WINDOW_AUTOSIZE);
+	setMouseCallback("Capture ", mouse_callback, NULL);
+	#ifdef CAMERAFEED
     namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
-    setMouseCallback("Capture ", mouse_callback, NULL);
 	cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
 	cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
-	cvCreateTrackbar("Threshold Blue","Camera ",&c3,255); 
+	cvCreateTrackbar("Threshold Blue","Camera ",&c3,255);
+	#endif
 	frame=cvLoadImage("test.jpg");
 	gameover=cvLoadImageM("gameover.jpg");
 
     vector<blob> blobs;
-    VideoCapture capture(-1);
+    VideoCapture capture(CAM_INDEX);
 	if(!capture.isOpened()){
 		return -1;
 	}
@@ -504,11 +518,14 @@ int main( int argc, const char** argv )
 	 	capture >> frame;
 		resize(frame, frame, size);
 		//flip(frame, frame, 1);
-		goodFeaturesToTrack_Demo( frame , 0 , 0);
+		// goodFeaturesToTrack_Demo( frame , 0 , 0);
 		key=waitKey(33);
 		// threshold_output=frame.clone();
 		// threshold_output = getbox(frame, c1, c2, c3); 
 		lineimg=getbox(frame, c1, c2, c3, angle, &newcoord.x); 
+		double paddle_slope = goodFeaturesToTrack_Demo( lineimg , 0 , 0);
+		double paddle_angle = atan(paddle_slope) * 180 / PI;
+		cout << "Angle of tilt: " << paddle_angle << endl;
 		//cout<<newcoord.x<<"\n";
    		//GetBlobs(threshold_output,blobs);
 		image = Mat::zeros( size, CV_8UC3 );
@@ -550,8 +567,8 @@ int main( int argc, const char** argv )
  //  		pos[1]=pospoly->GetVertex(1);
  //  		pos[2]=pospoly->GetVertex(2);
  //  		pos[3]=pospoly->GetVertex(3);
-	 	newcoord.x=Threshx;
-	 	newcoord.y=WORLDH-2;
+	 	 newcoord.x=Threshx;
+	 	 newcoord.y=WORLDH-2;
 		measurement(0)=newcoord.x;
 		measurement(1)=*angle;
 		Mat prediction = KF.predict();
@@ -641,15 +658,16 @@ int main( int argc, const char** argv )
 		 	aa++;
 		 	flag_x = false;
 		 	outputVideo.release();
-			while(1)
-			{
-				char a = waitKey(33);
+			#ifdef ADDPAUSE
+			while(1){
+			char a = waitKey(33);
 				if(a==27) 
 				{
 					flag = 0;
 					break;
 				}
 			}
+			#endif
 		}
 		 std::vector<b2Body *>::iterator pos2;
 			    for (pos2 = toDestroy.begin(); pos2 != toDestroy.end(); ++pos2) {
@@ -700,7 +718,10 @@ int main( int argc, const char** argv )
 			   
 		//if(bottomhitcount>2)break;
 		imshow( "Capture ", image );
+		#ifdef CAMERAFEED
+		imshow("Frame", frame);
 		imshow("Camera ", lineimg);
+		#endif
 		// imshow("Camera ", threshold_output);
 		Vec3b intensity;
 		// for(int ht=0;ht<600;ht++)
