@@ -1,5 +1,0 @@
-aughit:
-	g++ -ggdb `pkg-config --cflags opencv` `basename vidconv.cpp .cpp` vidconv.cpp `pkg-config --libs opencv` -lBox2D -o aughit 
-
-clean:
-	rm aughit
