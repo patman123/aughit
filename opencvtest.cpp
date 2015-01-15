@@ -3,6 +3,7 @@
 #include "opencv2/video/background_segm.hpp"
 #include <opencv2/core/core.hpp>
 #include "opencv2/video/tracking.hpp"
+#include <SFML/Audio.hpp>
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,9 +15,12 @@
 #include <queue>
 
 #define ROUND2
-#define CAMERAFEED
-#define CAM_INDEX 1
+#define ADDPAUSE
+#define CIRCULAR
+
+#define CAM_INDEX -1
 #define PI 3.14159265
+#define OPENING 3
 
 using namespace std;
 using namespace cv;
@@ -33,7 +37,7 @@ bool doSleep = true;
 // Construct a world object, which will hold and simulate the rigid bodies.
 b2World world(gravity, doSleep);	//takes in two parameters
 float pixel=40;	//value of pixel defined here
-int BLOCKCOUNT=14;	//number of blocks
+int BLOCKCOUNT=7;	//number of blocks
 int CORNERCOUNT = 2; 	//number of corners
 double WORLDH=15;	//world height	
 double WORLDW=20;	//world width
@@ -49,6 +53,8 @@ int cornertag =17;	//corner tag = 50
 char* source_window = "Camera";
 int maxCorners = 4;
 int maxTrackbar = 100;
+int morph_elem = 1;
+int morph_size = 3;
 
 struct MyContact {
     b2Fixture *fixtureA;
@@ -151,10 +157,14 @@ paddle::paddle()
 	bodyDef.position.Set(4,WORLDH-2);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
+	#ifdef CIRCULAR
 	b2CircleShape paddleShape;
 	paddleShape.m_radius = 1.5;
-	// b2PolygonShape paddleShape;
-	// paddleShape.SetAsBox(WORLDW/12, THICKNESS*2);
+	#endif
+	#ifdef RECTANGULAR
+	b2PolygonShape paddleShape;
+	paddleShape.SetAsBox(WORLDW/12, THICKNESS*2);
+	#endif
 	b2FixtureDef fixtureDef;
 	fixtureDef.shape = &paddleShape;
 	fixtureDef.density = 10.0f;
@@ -193,10 +203,9 @@ corner::corner()
 	cornertag++;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_staticBody;
-	if(tag<=17)
-		bodyDef.position.Set(X_CORNER,Y_CORNER);
-	else
-		bodyDef.position.Set(WORLDW-X_CORNER, Y_CORNER);
+	bodyDef.position.Set(X_CORNER,Y_CORNER);
+	// else
+	// 	bodyDef.position.Set(WORLDW-X_CORNER, Y_CORNER);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	b2Vec2 vertices[3],vertices1[3];
@@ -217,7 +226,7 @@ corner::corner()
 	fixtureDef.friction = 0.0f;
 	fixtureDef.restitution = 1;
 	body->CreateFixture(&fixtureDef);
-	//X_CORNER = WORLDW - X_CORNER;
+	X_CORNER = WORLDW - X_CORNER;
 }
 
 MyContactListener::MyContactListener() : _contacts() {
@@ -363,11 +372,12 @@ double goodFeaturesToTrack_Demo(Mat src,int, void* )
   //cout << "(" << corners[0].x << ","<<  corners[0].y << ") " << " " << "(" << corners[1].x << ","<<  corners[1].y << ") " << " " << "(" << corners[2].x << ","<<  corners[2].y << ") " << " " << "(" << corners[3].x << ","<<  corners[3].y << ") " << " "; 
   if(corners.size()>=4)
   	{
-  		slope = (corners[1].y-corners[0].y)/(corners[1].x-corners[0].x);
+  		slope = (corners[4].y-corners[0].y)/(corners[4].x-corners[0].x);
   		cout << slope << endl;
   	}
   for( int i = 0; i < corners.size(); i++ )
-     {  cout << corners[i].x << " " <<corners[i].y << endl;  
+     {  
+     	// cout << corners[i].x << " " <<corners[i].y << endl;  
      	circle( copy, corners[i], r, Scalar(rng.uniform(0,255), rng.uniform(0,255),
               rng.uniform(0,255)), -1, 8, 0 ); }
 
@@ -382,6 +392,10 @@ double goodFeaturesToTrack_Demo(Mat src,int, void* )
  
 int main( int argc, const char** argv )
 {
+	sf::Music music;
+	if(!music.openFromFile("aughit.ogg"))
+		return -1; //error loading
+	music.play();
 	b2Body* floorBody;
 	b2BodyDef floorDef;
 	b2FixtureDef floorFixtureDef;
@@ -411,6 +425,7 @@ int main( int argc, const char** argv )
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
 	int c1=228, c2=44, c3=83;
+	double angle_val = 0 ;
 	RotatedRect rRect;
 	Point2f vertices[4];
 	vector<int> pospad;
@@ -501,7 +516,7 @@ int main( int argc, const char** argv )
 	}
 	VideoWriter outputVideo("./Video/a.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
     // waitKey();
-	//printf("%d %d\n", (int)600, (int)800);
+	printf("%d %d\n", (int)600, (int)800);
 	while( key != 'q' )
 	{
 		if(flag_x == false)
@@ -523,6 +538,8 @@ int main( int argc, const char** argv )
 		// threshold_output=frame.clone();
 		// threshold_output = getbox(frame, c1, c2, c3); 
 		lineimg=getbox(frame, c1, c2, c3, angle, &newcoord.x); 
+		Mat element = getStructuringElement( morph_elem, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
+		morphologyEx(lineimg , lineimg, OPENING ,element);
 		double paddle_slope = goodFeaturesToTrack_Demo( lineimg , 0 , 0);
 		double paddle_angle = atan(paddle_slope) * 180 / PI;
 		cout << "Angle of tilt: " << paddle_angle << endl;
@@ -558,19 +575,23 @@ int main( int argc, const char** argv )
 		position = Player.body->GetPosition();
 		posfix=Player.body->GetFixtureList();
 		poshape = posfix->GetShape();
+		// cout << Player.body->GetAngle();
 		//angle = Player.body->GetAngle();
 		//cout<<angle<<"\n";
- //   		if(poshape->GetType() == b2Shape::e_polygon){
- //     		pospoly = (b2PolygonShape*)poshape;
- //  			 }
- //  		pos[0]=pospoly->GetVertex(0);
- //  		pos[1]=pospoly->GetVertex(1);
- //  		pos[2]=pospoly->GetVertex(2);
- //  		pos[3]=pospoly->GetVertex(3);
+		#ifdef RECTANGULAR
+   		if(poshape->GetType() == b2Shape::e_polygon){
+     		pospoly = (b2PolygonShape*)poshape;
+  			 }
+  		pos[0]=pospoly->GetVertex(0);
+  		pos[1]=pospoly->GetVertex(1);
+  		pos[2]=pospoly->GetVertex(2);
+  		pos[3]=pospoly->GetVertex(3);
+  		#endif
 	 	 newcoord.x=Threshx;
 	 	 newcoord.y=WORLDH-2;
+	 	 /**angle*/
 		measurement(0)=newcoord.x;
-		measurement(1)=*angle;
+		measurement(1)=paddle_angle;
 		Mat prediction = KF.predict();
 		Point predictPt(prediction.at<float>(0),prediction.at<float>(1));
 		Mat estimated = KF.correct(measurement);
@@ -581,32 +602,42 @@ int main( int argc, const char** argv )
 
 		newcoord.x=newcoord.x/pixel;
 	// 	//cout<<newcoord.x<<"\n";
-	// 	*angle=0;
-	// 	posp=getPoints(pos, *angle);
+		#ifdef RECTANGULAR
+		if(key == 't')
+			angle_val+=0.5;
+		if(key == 'y')
+			angle_val-=0.5;
+		*angle=angle_val;
+		posp=getPoints(pos, *angle);
 
- //  		for(int c=0;c<4;c++)
- //  		{
- //  			rook_points[0][c]=Point((position.x-posp[c].x)*pixel, (position.y-posp[c].y)*pixel);
- //  			//cout<<(position.x-posp[c].x)*pixel<<" "<< (position.y-posp[c].y)*pixel<<"\n";
- //  			//cout<<posp[c].x<<" "<<posp[c].y<<"\n";
- //  		}
+  		for(int c=0;c<4;c++)
+  		{
+  			rook_points[0][c]=Point((position.x-posp[c].x)*pixel, (position.y-posp[c].y)*pixel);
+  			//cout<<(position.x-posp[c].x)*pixel<<" "<< (position.y-posp[c].y)*pixel<<"\n";
+  			//cout<<posp[c].x<<" "<<posp[c].y<<"\n";
+  		}
  //  		// for(int c=0;c<4;c++)
  //  		// {		
  //  		// cout<<(position.x-posp[c].x)*pixel<<" "<<(position.y-posp[c].y)*pixel<<"\n";
  //  		// }
  //  		//cout<<"\n";
-	// 	const Point* ppt[1]= {rook_points[0]};
+		const Point* ppt[1]= {rook_points[0]};
+		#endif
 		newcoord.x=Threshx/pixel;
-	 	if(newcoord.x<(WORLDW-1.7-THICKNESS)&&newcoord.x>(1.7+THICKNESS)){
-	 	Player.body->SetTransform(newcoord, (float)*angle);
-	 }
-	//  	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
-
+	 	if(newcoord.x<(WORLDW-1.7-THICKNESS)&&newcoord.x>(1.7+THICKNESS))
+	 	{
+	 		Player.body->SetTransform(newcoord, (float)*angle);
+		}
+	 	#ifdef RECTANGULAR
+	 	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
+	 	#endif 
+	 	#ifdef CIRCULAR
 		ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
 		ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
+		#endif	
 		// waitKey();
 		//cout<<position.x<<" "<<position.y<<"\n";
-		//rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
+		// rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
 		// rRect = RotatedRect(Point2f(WORLDW/2*pixel,(WORLDH-2)*pixel), Size2f(WORLDW*2*pixel/5.5, THICKNESS*2*pixel), 30);
 		// rRect.points(vertices);
 		// for (int i = 0; i < 4; i++)	
@@ -643,8 +674,8 @@ int main( int argc, const char** argv )
 		b[0]=Point((WORLDW-THICKNESS)*pixel , THICKNESS*pixel);
 		b[1]=Point((WORLDW-2)*pixel , THICKNESS*pixel);
 		b[2]=Point((WORLDW-THICKNESS)*pixel, 2*pixel);
-		fillConvexPoly(image , a, 3, CV_RGB(255,255,255));
-		fillConvexPoly(image , b, 3, CV_RGB(255,255,255));
+		fillConvexPoly(image , a, 3, CV_RGB(255,220,0));
+		fillConvexPoly(image , b, 3, CV_RGB(255,220,0));
 		outputVideo << image;
 		position=Ball.body->GetPosition();
 		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))		//The ball has hit the bottom floor
@@ -690,7 +721,7 @@ int main( int argc, const char** argv )
 			            //Sprite A = ball, Sprite B = Block
 			            if (bA == 1 && bB > 2) {
 			            #ifdef ROUND2
-			            	if(bB==5||bB==9||bB==14)
+			            	if(bB==3||bB==5)
 			            		destroyed[bB-3]=2;
 			            	else
 			           	#endif
@@ -703,7 +734,7 @@ int main( int argc, const char** argv )
 			            //Sprite A = block, Sprite B = ball
 			            else if (bA > 2 && bB == 1) {
 			            #ifdef ROUND2
-			            	if(bA==5||bA==9||bA==14)
+			            	if(bA==3||bA==5)
 			            		destroyed[bA-3]=2;
 			            	else
 			            #endif

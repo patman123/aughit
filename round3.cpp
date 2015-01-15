@@ -14,7 +14,13 @@
 #include <queue>
 
 #define ROUND2
+#define ADDPAUSE
 #define CIRCULAR
+
+#define CAM_INDEX -1
+#define PI 3.14159265
+#define OPENING 3
+
 
 using namespace std;
 using namespace cv;
@@ -31,8 +37,8 @@ bool doSleep = true;
 // Construct a world object, which will hold and simulate the rigid bodies.
 b2World world(gravity, doSleep);	//takes in two parameters
 float pixel=40;	//value of pixel defined here
-int BLOCKCOUNT=14;	//number of blocks
-int MBLOCKCOUNT=4;
+int BLOCKCOUNT=7;	//number of blocks
+int MBLOCKCOUNT=2;
 int CORNERCOUNT = 2; 	//number of corners
 double WORLDH=15;	//world height	
 double WORLDW=20;	//world width
@@ -44,7 +50,7 @@ int ballX , ballY;
 double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
 double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
 int blocktag=3;		//block tag defined to be 3
-int movingblocktag =17;
+int movingblocktag =10;
 int cornertag =50;	//corner tag = 17
 double movvel=0.5;
 
@@ -247,7 +253,7 @@ corner::corner()
 	vertices1[2].Set(0, 1);
 	vertices1[0].Set(1 ,0);
 	b2PolygonShape cornerShape;
-	if(tag>17)
+	if(tag>50)
 		cornerShape.Set(vertices1, 3);
 	else 
 		cornerShape.Set(vertices, 3); 
@@ -404,6 +410,7 @@ int main( int argc, const char** argv )
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
 	int c1=218, c2=46, c3=64;
+	double angle_val = 0 ;
 	RotatedRect rRect;
 	Point2f vertices[4];
 	vector<int> pospad;
@@ -492,14 +499,14 @@ int main( int argc, const char** argv )
 	if(!capture.isOpened()){
 		return -1;
 	}
-	VideoWriter outputVideo("a.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
+	VideoWriter outputVideo("./Video/a.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
     // waitKey();
 	printf("%d %d\n", (int)600, (int)800);
 	while( key != 'q' )
 	{
 		if(flag_x == false)
 		{
-			sprintf(fname, "%c.avi" , aa);
+			sprintf(fname, "./Video/%c.avi" , aa);
 			outputVideo.open(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
    	 		flag_x = true;
    	 	}	
@@ -573,26 +580,34 @@ int main( int argc, const char** argv )
 
 		newcoord.x=newcoord.x/pixel;
 	// 	//cout<<newcoord.x<<"\n";
-	// 	*angle=0;
-	// 	posp=getPoints(pos, *angle);
+		#ifdef RECTANGULAR
+		if(key == 't')
+			angle_val+=0.5;
+		if(key == 'y')
+			angle_val-=0.5;
+		*angle=angle_val;
+		posp=getPoints(pos, *angle);
 
- //  		for(int c=0;c<4;c++)
- //  		{
- //  			rook_points[0][c]=Point((position.x-posp[c].x)*pixel, (position.y-posp[c].y)*pixel);
- //  			//cout<<(position.x-posp[c].x)*pixel<<" "<< (position.y-posp[c].y)*pixel<<"\n";
- //  			//cout<<posp[c].x<<" "<<posp[c].y<<"\n";
- //  		}
+  		for(int c=0;c<4;c++)
+  		{
+  			rook_points[0][c]=Point((position.x-posp[c].x)*pixel, (position.y-posp[c].y)*pixel);
+  			//cout<<(position.x-posp[c].x)*pixel<<" "<< (position.y-posp[c].y)*pixel<<"\n";
+  			//cout<<posp[c].x<<" "<<posp[c].y<<"\n";
+  		}
  //  		// for(int c=0;c<4;c++)
  //  		// {		
  //  		// cout<<(position.x-posp[c].x)*pixel<<" "<<(position.y-posp[c].y)*pixel<<"\n";
  //  		// }
  //  		//cout<<"\n";
-	// 	const Point* ppt[1]= {rook_points[0]};
+		const Point* ppt[1]= {rook_points[0]};
+		#endif
 		newcoord.x=Threshx/pixel;
 	 	if(newcoord.x<(WORLDW-1.7-THICKNESS)&&newcoord.x>(1.7+THICKNESS)){
 	 	Player.body->SetTransform(newcoord, (float)*angle);
 	 }
-	//  	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
+	 #ifdef RECTANGULAR
+	 	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
+	 	#endif 
 	 	#ifdef CIRCULAR
 		ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
 		ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
@@ -692,8 +707,8 @@ int main( int argc, const char** argv )
 		b[0]=Point((WORLDW-THICKNESS)*pixel , THICKNESS*pixel);
 		b[1]=Point((WORLDW-2)*pixel , THICKNESS*pixel);
 		b[2]=Point((WORLDW-THICKNESS)*pixel, 2*pixel);
-		fillConvexPoly(image , a, 3, CV_RGB(255,255,255));
-		fillConvexPoly(image, b , 3, CV_RGB(255,255,255));
+		fillConvexPoly(image , a, 3, CV_RGB(255,220,255));
+		fillConvexPoly(image, b , 3, CV_RGB(255,220,255));
 		outputVideo << image;
 		position=Ball.body->GetPosition();
 		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))		//The ball has hit the bottom floor
