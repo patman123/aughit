@@ -3,7 +3,6 @@
 #include "opencv2/video/background_segm.hpp"
 #include <opencv2/core/core.hpp>
 #include "opencv2/video/tracking.hpp"
-#include <SFML/Audio.hpp>
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -392,10 +391,6 @@ double goodFeaturesToTrack_Demo(Mat src,int, void* )
  
 int main( int argc, const char** argv )
 {
-	sf::Music music;
-	if(!music.openFromFile("aughit.ogg"))
-		return -1; //error loading
-	music.play();
 	b2Body* floorBody;
 	b2BodyDef floorDef;
 	b2FixtureDef floorFixtureDef;
