@@ -13,14 +13,14 @@
 #include <string>
 #include <queue>
 
-#define ROUND2
+#define ROUND1
 #define ADDPAUSE
-#define CIRCULAR
+#define RECTANGULAR
+#define ANGLEDETECT_NO
 
 #define CAM_INDEX -1
 #define PI 3.14159265
 #define OPENING 3
-
 
 using namespace std;
 using namespace cv;
@@ -38,7 +38,6 @@ bool doSleep = true;
 b2World world(gravity, doSleep);	//takes in two parameters
 float pixel=40;	//value of pixel defined here
 int BLOCKCOUNT=7;	//number of blocks
-int MBLOCKCOUNT=2;
 int CORNERCOUNT = 2; 	//number of corners
 double WORLDH=15;	//world height	
 double WORLDW=20;	//world width
@@ -50,9 +49,13 @@ int ballX , ballY;
 double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
 double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
 int blocktag=3;		//block tag defined to be 3
-int movingblocktag =10;
-int cornertag =50;	//corner tag = 17
-double movvel=0.5;
+int cornertag =-3;	//corner tag = 50
+int cornersize=5;
+char* source_window = "Camera";
+int maxCorners = 4;
+int maxTrackbar = 100;
+int morph_elem = 1;
+int morph_size = 3;
 
 struct MyContact {
     b2Fixture *fixtureA;
@@ -102,16 +105,6 @@ class block
 public:
 	block();
 	~block() {};
-	b2Body* body;
-	int tag;
-};
-
-class movingblock
-{
-	public:
-	movingblock();
-	setVelocity(double velx , double vely);
-	~movingblock() {};
 	b2Body* body;
 	int tag;
 };
@@ -205,55 +198,24 @@ block::block()
 	}
 };
 
-movingblock::movingblock()
-{
-	tag=movingblocktag;
-	movingblocktag++;
-	b2BodyDef bodyDef;
-	bodyDef.type = b2_kinematicBody;
-	bodyDef.position.Set(XOFFSET, YOFFSET);
-	bodyDef.userData=(void *)tag;
-	body = world.CreateBody(&bodyDef);
-	b2PolygonShape blockShape;
-	blockShape.SetAsBox(WORLDW/24, WORLDH/30);
-	b2FixtureDef fixtureDef;
-	fixtureDef.shape = &blockShape;
-	fixtureDef.density = 10.0f;
-	fixtureDef.friction = 0.0f;
-	fixtureDef.restitution = 1;
-	body->CreateFixture(&fixtureDef);
-	XOFFSET+=WORLDW/8;
-	if(XOFFSET>WORLDW-0.5){
-		XOFFSET=WORLDW/8;
-		YOFFSET+=2*WORLDH/15;
-	}
-	body->SetLinearVelocity(b2Vec2(0.5,0));
-};
-
-movingblock::setVelocity(double velx, double vely)
-{
-	body->SetLinearVelocity(b2Vec2(velx,vely));
-}
-
-
 corner::corner()
 {
 	tag=cornertag;
 	cornertag++;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(X_CORNER,Y_CORNER);
+	bodyDef.position.Set(0,0);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	b2Vec2 vertices[3],vertices1[3];
-	vertices[2].Set(-1 , 1);
-	vertices[1].Set( 0 , 1);
-	vertices[0].Set(-1 , 0);
-	vertices1[1].Set(1 , 1);
-	vertices1[2].Set(0, 1);
-	vertices1[0].Set(1 ,0);
+	vertices[0].Set(THICKNESS , THICKNESS);
+	vertices[1].Set( cornersize*THICKNESS , THICKNESS);
+	vertices[2].Set(THICKNESS , cornersize*THICKNESS);
+	vertices1[1].Set(WORLDW-THICKNESS , THICKNESS);
+	vertices1[0].Set(WORLDW-cornersize*THICKNESS, THICKNESS);
+	vertices1[2].Set(WORLDW-THICKNESS ,cornersize*THICKNESS);
 	b2PolygonShape cornerShape;
-	if(tag>50)
+	if(tag==-3)
 		cornerShape.Set(vertices1, 3);
 	else 
 		cornerShape.Set(vertices, 3); 
@@ -263,8 +225,7 @@ corner::corner()
 	fixtureDef.friction = 0.0f;
 	fixtureDef.restitution = 1;
 	body->CreateFixture(&fixtureDef);
-	X_CORNER = WORLDW - X_CORNER;
-};
+}
 
 MyContactListener::MyContactListener() : _contacts() {
 }
@@ -376,6 +337,55 @@ b2Vec2* getPoints(b2Vec2 pos[], double angle)
 	//cout<<angle<<"\n";
 	return newp;
 }
+
+double goodFeaturesToTrack_Demo(Mat src,int, void* )
+{
+  if( maxCorners < 1 ) { maxCorners = 1; }
+
+  /// Parameters for Shi-Tomasi algorithm
+  vector<Point2f> corners;
+  double qualityLevel = 0.01;
+  double minDistance = 10;
+  int blockSize = 3;
+  bool useHarrisDetector = true;
+  double k = 0.04;
+  double slope = 0.0;
+  Mat copy = src.clone();
+  Mat src_gray;
+// cvtColor (src, src_gray , CV_BGR2GRAY);
+  /// Apply corner detection
+  goodFeaturesToTrack( /*src_gray*/src,
+               corners,
+               maxCorners,
+               qualityLevel,
+               minDistance,
+               Mat(),
+               blockSize,
+               useHarrisDetector,
+               k );
+
+  /// Draw corners detected
+  cout<<"** Number of corners detected: "<<corners.size()<<endl;
+  int r = 4;
+  //cout << "(" << corners[0].x << ","<<  corners[0].y << ") " << " " << "(" << corners[1].x << ","<<  corners[1].y << ") " << " " << "(" << corners[2].x << ","<<  corners[2].y << ") " << " " << "(" << corners[3].x << ","<<  corners[3].y << ") " << " "; 
+  if(corners.size()>=4)
+  	{
+  		slope = (corners[4].y-corners[0].y)/(corners[4].x-corners[0].x);
+  		cout << slope << endl;
+  	}
+  for( int i = 0; i < corners.size(); i++ )
+     {  
+     	// cout << corners[i].x << " " <<corners[i].y << endl;  
+     	circle( copy, corners[i], r, Scalar(rng.uniform(0,255), rng.uniform(0,255),
+              rng.uniform(0,255)), -1, 8, 0 ); }
+
+  /// Show what you got
+  #ifdef CAMERAFEED
+  namedWindow( source_window, CV_WINDOW_AUTOSIZE );
+  imshow( source_window, copy );
+  #endif
+  return slope;
+}
  
  
 int main( int argc, const char** argv )
@@ -390,26 +400,25 @@ int main( int argc, const char** argv )
 	world.SetContactListener(_contactListener);
 	cout << "Enter Start Position of Ball ( X , Y ):";
 	cin >> ballX >> ballY;
-	b2Vec2 position , mpos;
+	b2Vec2 position;
 	ball Ball(ballX, ballY);
 	b2Vec2 force = b2Vec2(0.3,2);
 	float32 timeStep = 3.0f / 30.0f;
 	int32 velocityIterations = 20;
 	int32 positionIterations = 5;
 	block Blocks[BLOCKCOUNT];
-	movingblock MovingBlocks[MBLOCKCOUNT];
 	corner Corners[CORNERCOUNT];
 	bool flag = true , flag_x = true;
 	char aa = 'a';
 	char fname[5];
-	int destroyed[BLOCKCOUNT+MBLOCKCOUNT];
-	for(int dest=0;dest<BLOCKCOUNT+MBLOCKCOUNT;dest++)destroyed[dest]=0;
+	int destroyed[BLOCKCOUNT];
+	for(int dest=0;dest<BLOCKCOUNT;dest++)destroyed[dest]=0;
 	char key = 0;
 	int bA=0, bB=0;
 	b2Vec2 locationWorld;
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
-	int c1=218, c2=46, c3=64;
+	int c1=228, c2=44, c3=83;
 	double angle_val = 0 ;
 	RotatedRect rRect;
 	Point2f vertices[4];
@@ -423,9 +432,7 @@ int main( int argc, const char** argv )
 	int npt[]={4};
 	b2Vec2 newcoord;
 	double *angle;
-	int movingflag=1;
-	int framecounter=0;
-
+	
 	angle=(double *)malloc(sizeof(double));
 	int bottomhitcount=0;
 	double drawxoff=0, drawyoff=0;
@@ -486,16 +493,18 @@ int main( int argc, const char** argv )
 	
 	//namedWindow( "Lines ", CV_WINDOW_AUTOSIZE);
 	namedWindow( "Capture ", CV_WINDOW_AUTOSIZE);
-    //namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
-    setMouseCallback("Capture ", mouse_callback, NULL);
-	// cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
-	// cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
-	// cvCreateTrackbar("Threshold Blue","Camera ",&c3,255); 
+	setMouseCallback("Capture ", mouse_callback, NULL);
+	#ifdef CAMERAFEED
+    namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
+	cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
+	cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
+	cvCreateTrackbar("Threshold Blue","Camera ",&c3,255);
+	#endif
 	frame=cvLoadImage("test.jpg");
 	gameover=cvLoadImageM("gameover.jpg");
 
     vector<blob> blobs;
-    VideoCapture capture(-1);
+    VideoCapture capture(CAM_INDEX);
 	if(!capture.isOpened()){
 		return -1;
 	}
@@ -518,11 +527,18 @@ int main( int argc, const char** argv )
 	 	capture >> frame;
 		resize(frame, frame, size);
 		//flip(frame, frame, 1);
-
+		// goodFeaturesToTrack_Demo( frame , 0 , 0);
 		key=waitKey(33);
-		//threshold_output=frame.clone();
-		//threshold_output = getbox(frame, c1, c2, c3); 
+		// threshold_output=frame.clone();
+		// threshold_output = getbox(frame, c1, c2, c3); 
 		lineimg=getbox(frame, c1, c2, c3, angle, &newcoord.x); 
+		Mat element = getStructuringElement( morph_elem, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
+		morphologyEx(lineimg , lineimg, OPENING ,element);
+		#ifdef ANGLEDETECT
+		double paddle_slope = goodFeaturesToTrack_Demo( lineimg , 0 , 0);
+		double paddle_angle = atan(paddle_slope) * 180 / PI;
+		cout << "Angle of tilt: " << paddle_angle << endl;
+		#endif
 		//cout<<newcoord.x<<"\n";
    		//GetBlobs(threshold_output,blobs);
 		image = Mat::zeros( size, CV_8UC3 );
@@ -555,6 +571,7 @@ int main( int argc, const char** argv )
 		position = Player.body->GetPosition();
 		posfix=Player.body->GetFixtureList();
 		poshape = posfix->GetShape();
+		// cout << Player.body->GetAngle();
 		//angle = Player.body->GetAngle();
 		//cout<<angle<<"\n";
 		#ifdef RECTANGULAR
@@ -566,8 +583,9 @@ int main( int argc, const char** argv )
   		pos[2]=pospoly->GetVertex(2);
   		pos[3]=pospoly->GetVertex(3);
   		#endif
-	 	newcoord.x=Threshx;
-	 	newcoord.y=WORLDH-2;
+	 	 newcoord.x=Threshx;
+	 	 newcoord.y=WORLDH-2;
+	 	 /**angle*/
 		measurement(0)=newcoord.x;
 		measurement(1)=*angle;
 		Mat prediction = KF.predict();
@@ -602,25 +620,25 @@ int main( int argc, const char** argv )
 		const Point* ppt[1]= {rook_points[0]};
 		#endif
 		newcoord.x=Threshx/pixel;
-	 	if(newcoord.x<(WORLDW-1.7-THICKNESS)&&newcoord.x>(1.7+THICKNESS)){
-	 	Player.body->SetTransform(newcoord, (float)*angle);
-	 }
-	 #ifdef RECTANGULAR
+	 	if(newcoord.x<(WORLDW-1.7-THICKNESS)&&newcoord.x>(1.7+THICKNESS))
+	 	{
+	 		Player.body->SetTransform(newcoord, (float)*angle);
+		}
+	 	#ifdef RECTANGULAR
 	 	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
 	 	#endif 
 	 	#ifdef CIRCULAR
 		ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
 		ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
-		#endif
+		#endif	
 		// waitKey();
 		//cout<<position.x<<" "<<position.y<<"\n";
-		// #ifdef RECTANGULAR
 		// rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
 		// rRect = RotatedRect(Point2f(WORLDW/2*pixel,(WORLDH-2)*pixel), Size2f(WORLDW*2*pixel/5.5, THICKNESS*2*pixel), 30);
 		// rRect.points(vertices);
 		// for (int i = 0; i < 4; i++)	
 		//     line(image, vertices[i], vertices[(i+1)%4], CV_RGB( 255, 33, 127 ), 15);
-		// #endif
+
 		//printf("%f , %f\n", position.x*pixel,position.y*pixel);
 
 		//position=Player.body->GetPosition();
@@ -628,48 +646,7 @@ int main( int argc, const char** argv )
 		drawyoff=0;
 		drawxcorner=0; 
 		drawycorner=0;
-		mpos = MovingBlocks[MBLOCKCOUNT-1].body->GetPosition();		//Get position of last moving block
-		//b2Vec2 mp=MovingBlocks[0].body->GetPosition();
-		//cout<<mpos.x<<" "<<mpos.y<<"\n";
-		//waitKey();
-		framecounter+=movingflag;
-		double temp_off;
-		temp_off=0.05*framecounter;
-		if(mpos.x>WORLDW-2)
-		{
-			movingflag=-1;
-
-			for (int i=0; i<MBLOCKCOUNT; i++)
-			{
-				MovingBlocks[i].body->SetLinearVelocity(b2Vec2((-1)*movvel,0));
-			}
-		}
-		else if(mpos.x<2)
-		{
-
-			movingflag=1;
-			for (int i=0; i<MBLOCKCOUNT; i++)
-			{
-				MovingBlocks[i].body->SetLinearVelocity(b2Vec2(movvel,0));
-			}
-		}
-		// if(mpos.x>=WORLDW-2)			//Check if it is greater than WORLDW-0.5 
-		// {
-		// 	for (int i = 0; i < MBLOCKCOUNT; ++i, drawxoff+=WORLDW/8)
-		// 	{
-		// 		MovingBlocks[i].body->SetTransform(b2Vec2(drawxoff+WORLDW/8,WORLDH/10+4*WORLDH/15),0);	//If yes, then set velocity , 1 unit/second towards left
-		// 		MovingBlocks[i].setVelocity(0.5,0);
-		// 	}
-		// 	drawxoff = 0;
-		// }
-		// else
-		// {
-		// 	for (int i = 0; i < MBLOCKCOUNT; ++i)
-		// 	{
-		// 		MovingBlocks[i].setVelocity(0.5,0);		//Else ,  set velocity , 1 unit/second towards right
-		// 	}
-		// }
-		for(int bc=0;bc<BLOCKCOUNT;bc++)		//Loop to draw Static Blocks
+		for(int bc=0;bc<BLOCKCOUNT;bc++)
 		{
 			if(destroyed[bc]==0)
 
@@ -686,29 +663,15 @@ int main( int argc, const char** argv )
 				drawyoff+=2*WORLDH/15;
 			}
 		}
-		for(int bc=0;bc<MBLOCKCOUNT;bc++)
-		{
-				
-			if(destroyed[bc+BLOCKCOUNT]==0)
-			{
-				rectangle( image , Point((temp_off+drawxoff+WORLDW/12)*pixel, (drawyoff+WORLDH/15)*pixel),Point((temp_off+drawxoff+WORLDW/6)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);
-			}
-			drawxoff+=WORLDW/8;
-			if(bc%7==6){
-			//cout<<drawxoff<<" lolwa "<<drawyoff<<"\n";
-				drawxoff=0;
-				drawyoff+=2*WORLDH/15;
-			}
-		}
 		Point a[3],b[3];
-		a[0]=Point(THICKNESS*pixel , THICKNESS*pixel);
-		a[1]=Point(2*pixel , THICKNESS*pixel);
-		a[2]=Point(THICKNESS*pixel, 2*pixel);
-		b[0]=Point((WORLDW-THICKNESS)*pixel , THICKNESS*pixel);
-		b[1]=Point((WORLDW-2)*pixel , THICKNESS*pixel);
-		b[2]=Point((WORLDW-THICKNESS)*pixel, 2*pixel);
-		fillConvexPoly(image , a, 3, CV_RGB(255,220,255));
-		fillConvexPoly(image, b , 3, CV_RGB(255,220,255));
+		a[0]=Point(THICKNESS*pixel, (THICKNESS)*pixel);
+		a[1]=Point( cornersize*THICKNESS*pixel , (THICKNESS)*pixel);
+		a[2]=Point(THICKNESS*pixel , cornersize*THICKNESS*pixel);
+		b[0]=Point((WORLDW-THICKNESS)*pixel , (THICKNESS)*pixel);
+		b[1]=Point((WORLDW-cornersize*THICKNESS)*pixel, (THICKNESS)*pixel);
+		b[2]=Point((WORLDW-THICKNESS)*pixel ,(cornersize*THICKNESS)*pixel);
+		fillConvexPoly(image , a, 3, CV_RGB(255,220,0));
+		fillConvexPoly(image , b, 3, CV_RGB(255,220,0));
 		outputVideo << image;
 		position=Ball.body->GetPosition();
 		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))		//The ball has hit the bottom floor
@@ -722,23 +685,23 @@ int main( int argc, const char** argv )
 		 	aa++;
 		 	flag_x = false;
 		 	outputVideo.release();
-			while(1)
-			{
-				char a = waitKey(33);
+			#ifdef ADDPAUSE
+			while(1){
+			char a = waitKey(33);
 				if(a==27) 
 				{
-					flag = false;
+					flag = 0;
 					break;
 				}
 			}
+			#endif
 		}
 		 std::vector<b2Body *>::iterator pos2;
 			    for (pos2 = toDestroy.begin(); pos2 != toDestroy.end(); ++pos2) {
 			    	
 			        b2Body *body = *pos2;
 			        world.DestroyBody(body);
-
-			    
+			        
 	    }
 	    toDestroy.clear();
 		std::vector<MyContact>::iterator pos;
@@ -751,12 +714,10 @@ int main( int argc, const char** argv )
 			if (bodyA->GetUserData() != NULL && bodyB->GetUserData() != NULL) {
 				bA=(int)bodyA->GetUserData();
 				bB=(int)bodyB->GetUserData();
-			 			//cout<<bA<<" "<<bB<<"\n";
-			 			//waitKey();
 			            //Sprite A = ball, Sprite B = Block
 			            if (bA == 1 && bB > 2) {
 			            #ifdef ROUND2
-			            	if(bB==5||bB==9||bB==14)
+			            	if(bB==3||bB==5)
 			            		destroyed[bB-3]=2;
 			            	else
 			           	#endif
@@ -769,7 +730,7 @@ int main( int argc, const char** argv )
 			            //Sprite A = block, Sprite B = ball
 			            else if (bA > 2 && bB == 1) {
 			            #ifdef ROUND2
-			            	if(bA==5||bA==9||bA==14)
+			            	if(bA==3||bA==5)
 			            		destroyed[bA-3]=2;
 			            	else
 			            #endif
@@ -784,7 +745,10 @@ int main( int argc, const char** argv )
 			   
 		//if(bottomhitcount>2)break;
 		imshow( "Capture ", image );
-		// imshow("Camera ", lineimg);
+		#ifdef CAMERAFEED
+		imshow("Frame", frame);
+		imshow("Camera ", lineimg);
+		#endif
 		// imshow("Camera ", threshold_output);
 		Vec3b intensity;
 		// for(int ht=0;ht<600;ht++)
@@ -802,4 +766,3 @@ int main( int argc, const char** argv )
 	waitKey(2000);
 	capture.release();
 }
-	
