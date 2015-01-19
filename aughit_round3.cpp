@@ -15,7 +15,7 @@
 
 #define ROUND2
 #define ADDPAUSE
-#define CIRCULAR
+#define RECTANGULAR
 
 #define CAM_INDEX -1
 #define PI 3.14159265
@@ -264,6 +264,7 @@ corner::corner()
 	fixtureDef.density = 10.0f;
 	fixtureDef.friction = 0.0f;
 	fixtureDef.restitution = 1;
+	body->CreateFixture(&fixtureDef);
 }
 
 
@@ -708,8 +709,8 @@ int main( int argc, const char** argv )
 		b[0]=Point((WORLDW-THICKNESS)*pixel , (THICKNESS)*pixel);
 		b[1]=Point((WORLDW-cornersize*THICKNESS)*pixel, (THICKNESS)*pixel);
 		b[2]=Point((WORLDW-THICKNESS)*pixel ,(cornersize*THICKNESS)*pixel);
-		fillConvexPoly(image , a, 3, CV_RGB(255,220,255));
-		fillConvexPoly(image, b , 3, CV_RGB(255,220,255));
+		fillConvexPoly(image , a, 3, CV_RGB(255,220,0));
+		fillConvexPoly(image, b , 3, CV_RGB(255,220,0));
 		outputVideo << image;
 		position=Ball.body->GetPosition();
 		if(position.y>=(WORLDH-0.4-THICKNESS-0.005))		//The ball has hit the bottom floor

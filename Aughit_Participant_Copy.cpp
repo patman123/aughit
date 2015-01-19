@@ -13,20 +13,11 @@
 #include <string>
 #include <queue>
 
-#define ROUND2
-#define ADDPAUSE
+#define ROUND1
 #define RECTANGULAR
-#define ANGLEDETECT_NO
-
-#define CAM_INDEX -1
-#define PI 3.14159265
-#define OPENING 3
 
 using namespace std;
 using namespace cv;
-
-RNG rng(12345);
-#define DATA(A,i,j,k)  A.data[A.step*i + A.channels()*j + k]
 
 // Define the gravity vector.
 b2Vec2 gravity(0,0);
@@ -35,27 +26,17 @@ b2Vec2 gravity(0,0);
 bool doSleep = true;
 
 // Construct a world object, which will hold and simulate the rigid bodies.
-b2World world(gravity, doSleep);	//takes in two parameters
-float pixel=40;	//value of pixel defined here
-int BLOCKCOUNT=7;	//number of blocks
-int CORNERCOUNT = 2; 	//number of corners
-double WORLDH=15;	//world height	
-double WORLDW=20;	//world width
-double THICKNESS=0.2;	//thickness defined here
+b2World world(gravity, doSleep);	//Takes in two parameters
+float pixel=40;	//Value of pixel defined here
+double WORLDH=15;	//World Height	
+double WORLDW=20;	//World Width
+double THICKNESS=0.2;	//Thickness defined here
 b2Fixture *_paddleFixture;	//define pointer to type b2Fixture called paddle fixture
-int BALL=1, PADDLE=2, BLOCK=3 , CORNER=4; //define different variables for different objects
-int Threshx=0, Threshy=0;		//Set Threshold X , Threshold Y to zero 
-int ballX , ballY;
-double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	//Set Xoffset Y offset
-double X_CORNER=WORLDW/25, Y_CORNER=WORLDH/25;	//trying out x corner , y corner
-int blocktag=3;		//block tag defined to be 3
-int cornertag =-3;	//corner tag = 50
+int Threshx=0, Threshy=0;		
+double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	
+int blocktag=3;		//Block tag defined to be 3
+int cornertag =-3;	//Corner tag is negative
 int cornersize=5;
-char* source_window = "Camera";
-int maxCorners = 4;
-int maxTrackbar = 100;
-int morph_elem = 1;
-int morph_size = 3;
 
 struct MyContact {
     b2Fixture *fixtureA;
@@ -259,59 +240,6 @@ void MyContactListener::PostSolve(b2Contact* contact,
 
 paddle Player;
 
-Mat getbox(cv::Mat img, int c1, int c2, int c3, double *a, float *Newx){
-	vector<Point2f> points;
-	Point2f point;
-	int countj=0;
-	int totcount=1;
-	Mat bin=Mat::zeros( img.size(), CV_8UC1 );
-	Mat color_dst=Mat::zeros( img.size(), CV_8UC3 );
-	for(int i=0; i < img.rows; i++) {
-		for(int j=0; j < img.cols; j++) {
-			if(DATA(img,i,j,2) > c3&&DATA(img,i,j,0) <c1&&DATA(img,i,j,1) <c2){
-				DATA(bin,i,j,0)  = 255;//Assigned white
-				countj+=j;
-				totcount++;
-			}
-			else{
-				DATA(bin,i,j,0)  = 0;//Assigned black
-			}//Assigned black
-	 	}
-	 }
-
-	*Newx=countj/totcount;
-	//Canny( bin, bin, 50, 200, 3 );
-    // vector<Vec4i> lines;
- //    Vec4f ln;
- //    for(int i=0; i < bin.rows; i++) {
-	// 	for(int j=0; j < bin.cols; j++) {
-	// 		if(DATA(bin, i, j ,0)==255){
-	// 			point.x=i;
-	// 			point.y=j;
-	// 			points.push_back(point);
-	// 		}
-	//  	}
-	//  }
-	//  ln[0]=1;
- //    // HoughLinesP( bin, lines, 1, CV_PI/90, 30, 0, 30);
- //    // for( size_t i = 0; i < lines.size(); i++ )
- //    // {
- //    //     line( color_dst, Point(lines[i][0], lines[i][1]),
- //    //         Point(lines[i][2], lines[i][3]), Scalar(0,0,255), 3, 8 );
- //    //     angle=(double)(lines[i][3]-lines[i][2])/(double)(lines[i][1]-lines[i][0]);
- //    //    // if(angle>maxangle)maxangle=angle;
- //    // }
- //    if(points.size()>0){
- //    	fitLine(points, ln, CV_DIST_L2, 0, 0.01, 0.01);
- //    	*a=(double)(ln[1]/ln[0]);
- //    }
- //    else *a=0;
-	// line( color_dst, Point(ln[0], ln[1]),Point(ln[2], ln[3]), Scalar(0,0,255), 3, 8 );
-	// //cout<<*a<<"\n";
-	return bin; //Result is returned
-	//return bin;
-}
-
 void mouse_callback(int event, int x, int y, int flags, void* param)
 {
 	//This is called every time a mouse event occurs in the window
@@ -332,61 +260,9 @@ b2Vec2* getPoints(b2Vec2 pos[], double angle)
 	for(int c=0;c<4;c++){
 	newp[c].x=pos[c].x*cos(angle)-pos[c].y*sin(angle);
 	newp[c].y=pos[c].y*cos(angle)+pos[c].x*sin(angle);
-	//cout<<newp[c].x<<" "<<newp[c].y<<"\n";
 	}	
-	//cout<<angle<<"\n";
 	return newp;
 }
-
-double goodFeaturesToTrack_Demo(Mat src,int, void* )
-{
-  if( maxCorners < 1 ) { maxCorners = 1; }
-
-  /// Parameters for Shi-Tomasi algorithm
-  vector<Point2f> corners;
-  double qualityLevel = 0.01;
-  double minDistance = 10;
-  int blockSize = 3;
-  bool useHarrisDetector = true;
-  double k = 0.04;
-  double slope = 0.0;
-  Mat copy = src.clone();
-  Mat src_gray;
-// cvtColor (src, src_gray , CV_BGR2GRAY);
-  /// Apply corner detection
-  goodFeaturesToTrack( /*src_gray*/src,
-               corners,
-               maxCorners,
-               qualityLevel,
-               minDistance,
-               Mat(),
-               blockSize,
-               useHarrisDetector,
-               k );
-
-  /// Draw corners detected
-  cout<<"** Number of corners detected: "<<corners.size()<<endl;
-  int r = 4;
-  //cout << "(" << corners[0].x << ","<<  corners[0].y << ") " << " " << "(" << corners[1].x << ","<<  corners[1].y << ") " << " " << "(" << corners[2].x << ","<<  corners[2].y << ") " << " " << "(" << corners[3].x << ","<<  corners[3].y << ") " << " "; 
-  if(corners.size()>=4)
-  	{
-  		slope = (corners[4].y-corners[0].y)/(corners[4].x-corners[0].x);
-  		cout << slope << endl;
-  	}
-  for( int i = 0; i < corners.size(); i++ )
-     {  
-     	// cout << corners[i].x << " " <<corners[i].y << endl;  
-     	circle( copy, corners[i], r, Scalar(rng.uniform(0,255), rng.uniform(0,255),
-              rng.uniform(0,255)), -1, 8, 0 ); }
-
-  /// Show what you got
-  #ifdef CAMERAFEED
-  namedWindow( source_window, CV_WINDOW_AUTOSIZE );
-  imshow( source_window, copy );
-  #endif
-  return slope;
-}
- 
  
 int main( int argc, const char** argv )
 {
@@ -398,30 +274,24 @@ int main( int argc, const char** argv )
 	MyContactListener *_contactListener;
 	_contactListener = new MyContactListener();
 	world.SetContactListener(_contactListener);
-	cout << "Enter Start Position of Ball ( X , Y ):";
-	cin >> ballX >> ballY;
 	b2Vec2 position;
-	ball Ball(ballX, ballY);
+	ball Ball(3, 3);
 	b2Vec2 force = b2Vec2(0.3,2);
 	float32 timeStep = 3.0f / 30.0f;
 	int32 velocityIterations = 20;
 	int32 positionIterations = 5;
-	block Blocks[BLOCKCOUNT];
-	corner Corners[CORNERCOUNT];
+	block Blocks[7];
+	corner Corners[2];
 	bool flag = true , flag_x = true;
-	char aa = 'a';
-	char fname[5];
-	int destroyed[BLOCKCOUNT];
-	for(int dest=0;dest<BLOCKCOUNT;dest++)destroyed[dest]=0;
+	char index = 'a';
+	char fname[15];
+	int destroyed[7];
+	for(int dest=0;dest<7;dest++)destroyed[dest]=0;
 	char key = 0;
 	int bA=0, bB=0;
 	b2Vec2 locationWorld;
-	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
-	int c1=228, c2=44, c3=83;
 	double angle_val = 0 ;
-	RotatedRect rRect;
-	Point2f vertices[4];
 	vector<int> pospad;
 	b2Fixture *posfix;
 	b2Shape *poshape;
@@ -432,34 +302,15 @@ int main( int argc, const char** argv )
 	int npt[]={4};
 	b2Vec2 newcoord;
 	double *angle;
-	
 	angle=(double *)malloc(sizeof(double));
 	int bottomhitcount=0;
 	double drawxoff=0, drawyoff=0;
-	double drawxcorner=0 , drawycorner=0;
-    Mat frame,foreground,image, gameover, lineimg;
-    Mat threshold_output=Mat::zeros( size, CV_8UC1 );
+    Mat image, gameover;
 	b2Body* bodyA;
 	b2Body* bodyB;
-	int frm=0;
-	KalmanFilter KF(4, 2, 0);
 	std::vector<b2Body *>toDestroy;
-	// intialization of KF...
-	KF.transitionMatrix = *(Mat_<float>(4, 4) << 1,0,1,0,   0,1,0,1,  0,0,1,0,  0,0,0,1);
-	Mat_<float> measurement(2,1); measurement.setTo(Scalar(0));
-	 
-	KF.statePre.at<float>(0) = WORLDW/2*pixel;
-	KF.statePre.at<float>(1) = (WORLDH-2)*pixel;
-	KF.statePre.at<float>(2) = 0;
-	KF.statePre.at<float>(3) = 0;
-	setIdentity(KF.measurementMatrix);
-	setIdentity(KF.processNoiseCov, Scalar::all(1e-4));
-	setIdentity(KF.measurementNoiseCov, Scalar::all(10));
-	setIdentity(KF.errorCovPost, Scalar::all(.1));
-
-
 	char* output="";
-
+	//Create Floor
 	floorBox.SetAsBox(WORLDW/2,THICKNESS/2);
 	floorFixtureDef.shape = &floorBox;
 	floorFixtureDef.restitution = 1;
@@ -469,53 +320,36 @@ int main( int argc, const char** argv )
 	floorDef.type=b2_staticBody;
 	floorBody = world.CreateBody(&floorDef);
 	_floorFixture=floorBody->CreateFixture(&floorFixtureDef);
-
+	//Left Edge
 	b2Body* leftBody;
 	floorBox.SetAsBox(THICKNESS/2, WORLDH/2-THICKNESS);
 	floorDef.position.Set(THICKNESS/2,WORLDH/2);
 	leftBody = world.CreateBody(&floorDef);
 	leftBody->CreateFixture(&floorFixtureDef);
-
+	//Right Edge
 	b2Body* rightBody;
 	floorDef.position.Set(WORLDW-THICKNESS/2,WORLDH/2);
 	rightBody = world.CreateBody(&floorDef);
 	rightBody->CreateFixture(&floorFixtureDef);
-	
+	//Top Edge
 	b2Body* topBody;
 	floorBox.SetAsBox(WORLDW/2,THICKNESS/2);
 	floorDef.position.Set(WORLDW/2, THICKNESS/2);
 	topBody = world.CreateBody(&floorDef);
 	topBody->CreateFixture(&floorFixtureDef);
-
+	//Apply Linear Impulse to Ball
 	Ball.body->ApplyLinearImpulse(force, Ball.body->GetPosition());
 	force = b2Vec2(-40,-30);
-	//Player.body->ApplyLinearImpulse(force, Player.body->GetPosition());
-	
-	//namedWindow( "Lines ", CV_WINDOW_AUTOSIZE);
 	namedWindow( "Capture ", CV_WINDOW_AUTOSIZE);
 	setMouseCallback("Capture ", mouse_callback, NULL);
-	#ifdef CAMERAFEED
-    namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
-	cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
-	cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
-	cvCreateTrackbar("Threshold Blue","Camera ",&c3,255);
-	#endif
-	frame=cvLoadImage("test.jpg");
 	gameover=cvLoadImageM("gameover.jpg");
-
     vector<blob> blobs;
-    VideoCapture capture(CAM_INDEX);
-	if(!capture.isOpened()){
-		return -1;
-	}
 	VideoWriter outputVideo("./Video/a.avi", CV_FOURCC('M','J','P','G'), 10, size, true);
-    // waitKey();
-	printf("%d %d\n", (int)600, (int)800);
 	while( key != 'q' )
 	{
 		if(flag_x == false)
 		{
-			sprintf(fname, "./Video/%c.avi" , aa);
+			sprintf(fname, "./Video/%c.avi" , index);
 			outputVideo.open(fname, CV_FOURCC('M','J','P','G'), 10, size, true);
    	 		flag_x = true;
    	 	}	
@@ -524,23 +358,7 @@ int main( int argc, const char** argv )
         	cout  << "Could not open the output video for write: " << endl;
         	return -1;
    		}
-	 	capture >> frame;
-		resize(frame, frame, size);
-		//flip(frame, frame, 1);
-		// goodFeaturesToTrack_Demo( frame , 0 , 0);
-		key=waitKey(33);
-		// threshold_output=frame.clone();
-		// threshold_output = getbox(frame, c1, c2, c3); 
-		lineimg=getbox(frame, c1, c2, c3, angle, &newcoord.x); 
-		Mat element = getStructuringElement( morph_elem, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
-		morphologyEx(lineimg , lineimg, OPENING ,element);
-		#ifdef ANGLEDETECT
-		double paddle_slope = goodFeaturesToTrack_Demo( lineimg , 0 , 0);
-		double paddle_angle = atan(paddle_slope) * 180 / PI;
-		cout << "Angle of tilt: " << paddle_angle << endl;
-		#endif
-		//cout<<newcoord.x<<"\n";
-   		//GetBlobs(threshold_output,blobs);
+		key=waitKey(33); 
 		image = Mat::zeros( size, CV_8UC3 );
 		double max = 0;
 		int num = -1;
@@ -554,26 +372,10 @@ int main( int argc, const char** argv )
 
 		position = Ball.body->GetPosition();
 		circle( image , Point(position.x * pixel, position.y * pixel), 0.4*pixel , CV_RGB( 0, 255, 0 ) , -7,8,0);
-		//cout<<position.x<<" "<<position.y<<" ";
-
 		locationWorld = b2Vec2(Threshx/pixel, Threshy/pixel);
-
-  //       b2MouseJointDef md;
-  //       md.bodyA = floorBody;
-  //       md.bodyB = Player.body;
-  //       md.target = locationWorld;
-  //       md.collideConnected = true;
-  //       md.maxForce = 1000.0f * Player.body->GetMass();
- 
-  //       _mouseJoint = (b2MouseJoint *)_world->CreateJoint(&md);
-  //       Player.body->SetAwake(true);
- 
 		position = Player.body->GetPosition();
 		posfix=Player.body->GetFixtureList();
 		poshape = posfix->GetShape();
-		// cout << Player.body->GetAngle();
-		//angle = Player.body->GetAngle();
-		//cout<<angle<<"\n";
 		#ifdef RECTANGULAR
    		if(poshape->GetType() == b2Shape::e_polygon){
      		pospoly = (b2PolygonShape*)poshape;
@@ -585,19 +387,6 @@ int main( int argc, const char** argv )
   		#endif
 	 	 newcoord.x=Threshx;
 	 	 newcoord.y=WORLDH-2;
-	 	 /**angle*/
-		measurement(0)=newcoord.x;
-		measurement(1)=*angle;
-		Mat prediction = KF.predict();
-		Point predictPt(prediction.at<float>(0),prediction.at<float>(1));
-		Mat estimated = KF.correct(measurement);
- 
-		Point statePt(estimated.at<float>(0),estimated.at<float>(1));
-		Point measPt(measurement(0),measurement(1));
-		newcoord.x=measPt.x;
-
-		newcoord.x=newcoord.x/pixel;
-	// 	//cout<<newcoord.x<<"\n";
 		#ifdef RECTANGULAR
 		if(key == 't')
 			angle_val+=0.5;
@@ -605,18 +394,10 @@ int main( int argc, const char** argv )
 			angle_val-=0.5;
 		*angle=angle_val;
 		posp=getPoints(pos, *angle);
-
   		for(int c=0;c<4;c++)
   		{
   			rook_points[0][c]=Point((position.x-posp[c].x)*pixel, (position.y-posp[c].y)*pixel);
-  			//cout<<(position.x-posp[c].x)*pixel<<" "<< (position.y-posp[c].y)*pixel<<"\n";
-  			//cout<<posp[c].x<<" "<<posp[c].y<<"\n";
   		}
- //  		// for(int c=0;c<4;c++)
- //  		// {		
- //  		// cout<<(position.x-posp[c].x)*pixel<<" "<<(position.y-posp[c].y)*pixel<<"\n";
- //  		// }
- //  		//cout<<"\n";
 		const Point* ppt[1]= {rook_points[0]};
 		#endif
 		newcoord.x=Threshx/pixel;
@@ -625,28 +406,15 @@ int main( int argc, const char** argv )
 	 		Player.body->SetTransform(newcoord, (float)*angle);
 		}
 	 	#ifdef RECTANGULAR
-	 	fillPoly( image,ppt,npt, 1, CV_RGB(255,0,0) );
+	 	fillPoly( image, ppt, npt, 1, CV_RGB(255,0,0) );
 	 	#endif 
 	 	#ifdef CIRCULAR
 		ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
 		ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
-		#endif	
-		// waitKey();
-		//cout<<position.x<<" "<<position.y<<"\n";
-		// rectangle( image , Point((WORLDW/2-WORLDW/5.5)* pixel, (WORLDH-2-2*THICKNESS)* pixel),Point((WORLDW/2+WORLDW/5.5)* pixel, (WORLDH-2+2*THICKNESS) * pixel),CV_RGB( 255, 33, 127 ), -2);
-		// rRect = RotatedRect(Point2f(WORLDW/2*pixel,(WORLDH-2)*pixel), Size2f(WORLDW*2*pixel/5.5, THICKNESS*2*pixel), 30);
-		// rRect.points(vertices);
-		// for (int i = 0; i < 4; i++)	
-		//     line(image, vertices[i], vertices[(i+1)%4], CV_RGB( 255, 33, 127 ), 15);
-
-		//printf("%f , %f\n", position.x*pixel,position.y*pixel);
-
-		//position=Player.body->GetPosition();
+		#endif
 		drawxoff=0; 
 		drawyoff=0;
-		drawxcorner=0; 
-		drawycorner=0;
-		for(int bc=0;bc<BLOCKCOUNT;bc++)
+		for(int bc=0;bc<7;bc++)
 		{
 			if(destroyed[bc]==0)
 
@@ -682,10 +450,9 @@ int main( int argc, const char** argv )
 			flag = true;
 		if(position.y >= WORLDH-6 && flag==true)		//Have to fix this now
 		{
-		 	aa++;
+		 	index++;
 		 	flag_x = false;
 		 	outputVideo.release();
-			#ifdef ADDPAUSE
 			while(1){
 			char a = waitKey(33);
 				if(a==27) 
@@ -694,7 +461,6 @@ int main( int argc, const char** argv )
 					break;
 				}
 			}
-			#endif
 		}
 		 std::vector<b2Body *>::iterator pos2;
 			    for (pos2 = toDestroy.begin(); pos2 != toDestroy.end(); ++pos2) {
@@ -742,27 +508,9 @@ int main( int argc, const char** argv )
 			        }
 			    
 				 }
-			   
-		//if(bottomhitcount>2)break;
 		imshow( "Capture ", image );
-		#ifdef CAMERAFEED
-		imshow("Frame", frame);
-		imshow("Camera ", lineimg);
-		#endif
-		// imshow("Camera ", threshold_output);
-		Vec3b intensity;
-		// for(int ht=0;ht<600;ht++)
-		// {
-		// 	for(int wd=0;wd<800;wd++)
-		// 	{
-		// 		intensity = image.at<Vec3b>(ht, wd);
-		// 		// printf("%d %d %d\n", intensity.val[0], intensity.val[1], intensity.val[2]);
-		// 	}
-		// }
 	}
-
 	resize(gameover, gameover ,size);
 	imshow("Capture ", gameover);
 	waitKey(2000);
-	capture.release();
 }
