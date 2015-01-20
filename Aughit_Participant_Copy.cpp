@@ -33,7 +33,7 @@ double WORLDW=20;	//World Width
 double THICKNESS=0.2;	//Thickness defined here
 b2Fixture *_paddleFixture;	//define pointer to type b2Fixture called paddle fixture
 int Threshx=0, Threshy=0;		
-double XOFFSET=WORLDW/8, YOFFSET=WORLDH/10;	
+double XOFFSET=WORLDW/8;	
 int blocktag=3;		//Block tag defined to be 3
 int cornertag =-3;	//Corner tag is negative
 int cornersize=5;
@@ -161,7 +161,7 @@ block::block()
 	blocktag++;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(XOFFSET, YOFFSET);
+	bodyDef.position.Set(XOFFSET, WORLDH/10);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	b2PolygonShape blockShape;
@@ -173,10 +173,6 @@ block::block()
 	fixtureDef.restitution = 1;
 	body->CreateFixture(&fixtureDef);
 	XOFFSET+=WORLDW/8;
-	if(XOFFSET>WORLDW-0.5){
-		XOFFSET=WORLDW/8;
-		YOFFSET+=2*WORLDH/15;
-	}
 };
 
 corner::corner()
@@ -304,7 +300,7 @@ int main( int argc, const char** argv )
 	double *angle;
 	angle=(double *)malloc(sizeof(double));
 	int bottomhitcount=0;
-	double drawxoff=0, drawyoff=0;
+	double drawxoff=0;
     Mat image, gameover;
 	b2Body* bodyA;
 	b2Body* bodyB;
@@ -413,23 +409,18 @@ int main( int argc, const char** argv )
 		ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
 		#endif
 		drawxoff=0; 
-		drawyoff=0;
 		for(int bc=0;bc<7;bc++)
 		{
 			if(destroyed[bc]==0)
 
 			{
-				rectangle( image , Point((drawxoff+WORLDW/12)*pixel, (drawyoff+WORLDH/15)*pixel),Point((drawxoff+WORLDW/6)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);	
+				rectangle( image , Point((drawxoff+WORLDW/12)*pixel, (WORLDH/15)*pixel),Point((drawxoff+WORLDW/6)*pixel, (2*WORLDH/15)*pixel),CV_RGB(0,0,255), -2);	
 			}
 			else if(destroyed[bc]==2)
 			{
-				rectangle( image , Point((drawxoff+WORLDW/12)*pixel, (drawyoff+WORLDH/15)*pixel),Point((drawxoff+WORLDW/6)*pixel, (drawyoff+2*WORLDH/15)*pixel),CV_RGB(255,255,0), -2);
+				rectangle( image , Point((drawxoff+WORLDW/12)*pixel, (WORLDH/15)*pixel),Point((drawxoff+WORLDW/6)*pixel, (2*WORLDH/15)*pixel),CV_RGB(255,255,0), -2);
 			}
 			drawxoff+=WORLDW/8;
-			if(bc%7==6){
-				drawxoff=0;
-				drawyoff+=2*WORLDH/15;
-			}
 		}
 		Point a[3],b[3];
 		a[0]=Point(THICKNESS*pixel, (THICKNESS)*pixel);

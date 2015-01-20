@@ -8,4 +8,4 @@ vidplay:
 	g++ -ggdb `pkg-config --cflags opencv` vidplay.cpp `pkg-config --libs opencv` -o vidplay
 
 clean:
-	rm aughit round3 vidplay
+	rm aughit round3 vidplay participant
