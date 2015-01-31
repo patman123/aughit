@@ -14,9 +14,10 @@
 #include <queue>
 
 #define ROUND2
-#define ADDPAUSE
-#define RECTANGULAR
-#define ANGLEDETECT_NO
+#define ADDPAUSE_NO
+#define CIRCULAR
+#define ANGLEDETECT
+#define CAMERAFEED
 
 #define CAM_INDEX -1
 #define PI 3.14159265

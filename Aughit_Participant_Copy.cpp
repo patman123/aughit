@@ -13,7 +13,10 @@
 #include <string>
 #include <queue>
 
-#define ROUND1
+//Change following macros for Round 1/2 and Rectangular/Semi-Circular Paddle accordingly
+//Can switch between ROUND1 and ROUND2
+#define ROUND2
+//Can switch between RECTANGULAR and SEMICIRCULAR
 #define RECTANGULAR
 
 using namespace std;
@@ -139,7 +142,7 @@ paddle::paddle()
 	bodyDef.position.Set(4,WORLDH-2);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
-	#ifdef CIRCULAR
+	#ifdef SEMICIRCULAR
 	b2CircleShape paddleShape;
 	paddleShape.m_radius = 1.5;
 	#endif
@@ -404,7 +407,7 @@ int main( int argc, const char** argv )
 	 	#ifdef RECTANGULAR
 	 	fillPoly( image, ppt, npt, 1, CV_RGB(255,0,0) );
 	 	#endif 
-	 	#ifdef CIRCULAR
+	 	#ifdef SEMICIRCULAR
 		ellipse( image,Point(position.x * pixel, position.y * pixel),cv::Size(1.5*pixel,1.5*pixel),0,180,360,CV_RGB( 255,0, 0 ),-7,8,0);
 		ellipse( image,Point(position.x * pixel, position.y * pixel-15),cv::Size(1.7*pixel,1.7*pixel),0,180,0,CV_RGB( 0,0, 0 ),-7,8,0);
 		#endif
@@ -474,7 +477,7 @@ int main( int argc, const char** argv )
 			            //Sprite A = ball, Sprite B = Block
 			            if (bA == 1 && bB > 2) {
 			            #ifdef ROUND2
-			            	if(bB==3||bB==5)
+			            	if(bB==4)
 			            		destroyed[bB-3]=2;
 			            	else
 			           	#endif
@@ -487,7 +490,7 @@ int main( int argc, const char** argv )
 			            //Sprite A = block, Sprite B = ball
 			            else if (bA > 2 && bB == 1) {
 			            #ifdef ROUND2
-			            	if(bA==3||bA==5)
+			            	if(bA==4)
 			            		destroyed[bA-3]=2;
 			            	else
 			            #endif
