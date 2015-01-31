@@ -12,10 +12,11 @@
 #include <algorithm>
 #include <string>
 #include <queue>
+#include <cmath>
 
-#define ROUND2
+#define ROUND1
 #define ADDPAUSE_NO
-#define RECTANGULAR
+#define CIRCULAR
 #define ANGLEDETECT
 #define CAMERAFEED
 #define FACTOR 0.0176
@@ -39,7 +40,7 @@ bool doSleep = true;
 // Construct a world object, which will hold and simulate the rigid bodies.
 b2World world(gravity, doSleep);	//takes in two parameters
 float pixel=40;	//value of pixel defined here
-int BLOCKCOUNT=7;	//number of blocks
+int BLOCKCOUNT=14;	//number of blocks
 int CORNERCOUNT = 2; 	//number of corners
 double WORLDH=15;	//world height	
 double WORLDW=20;	//world width
@@ -95,7 +96,7 @@ public:
 class paddle
 {
 public:
-	paddle();
+	paddle(double x);
 	~paddle() {};
 	b2Body* body;
 	int tag;
@@ -151,12 +152,12 @@ ball::ball(double x, double y)
 	_ballFixture = body->CreateFixture(&fixtureDef);
 };
 
-paddle::paddle()
+paddle::paddle(double x)
 {
 	tag=2;
 	b2BodyDef bodyDef;
 	bodyDef.type = b2_staticBody;
-	bodyDef.position.Set(4,WORLDH-2);
+	bodyDef.position.Set(x,WORLDH-2);
 	bodyDef.userData=(void *)tag;
 	body = world.CreateBody(&bodyDef);
 	#ifdef CIRCULAR
@@ -258,8 +259,6 @@ void MyContactListener::PostSolve(b2Contact* contact,
   const b2ContactImpulse* impulse) {
 }
 
-paddle Player;
-
 Mat getbox(cv::Mat img, int c1, int c2, int c3, double *a, float *Newx){
 	vector<Point2f> points;
 	Point2f point;
@@ -331,6 +330,14 @@ bool IsValidPoint(int i, int j, int r, int c)
 		return true;
 }
 
+static double findangle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
+{
+	double dx1 = pt1.x - pt0.x;
+	double dy1 = pt1.y - pt0.y;
+	double dx2 = pt2.x - pt0.x;
+	double dy2 = pt2.y - pt0.y;
+	return (dx1*dx2 + dy1*dy2)/sqrt((dx1*dx1 + dy1*dy1)*(dx2*dx2 + dy2*dy2) + 1e-10);
+}
 
 void GetBlobs(Mat img, vector<blob>& blobs){
 	int i,j,k,l,r = img.rows,c = img.cols,id=1;
@@ -372,7 +379,7 @@ void GetBlobs(Mat img, vector<blob>& blobs){
 					}
 				}
 			}
-			if(n_pixels < 20) //At least 20 pixels
+			if(n_pixels < 100) //At least 100 pixels
 				continue;
 			blob nextcentre = {min_x,max_x,min_y,max_y,(min_x+max_x)/2,(min_y+max_y)/2/*sum_x/n_pixels*//*,sum_y/n_pixels*/,id};
 			blobs.push_back(nextcentre);
@@ -380,7 +387,7 @@ void GetBlobs(Mat img, vector<blob>& blobs){
 		}
 }
 
-	cout<<blobs.size(); //To test correctness; can use the vector as desired
+	// cout<<blobs.size(); //To test correctness; can use the vector as desired
 }
 
 
@@ -480,6 +487,10 @@ int main( int argc, const char** argv )
 	cin >> ballX >> ballY;
 	b2Vec2 position;
 	ball Ball(ballX, ballY);
+	int paddleX;
+	cout << "\nEnter Start position of paddle (x): ";
+	cin >> paddleX;
+	paddle Player(paddleX);
 	b2Vec2 force = b2Vec2(0.3,2);
 	float32 timeStep = 3.0f / 30.0f;
 	int32 velocityIterations = 20;
@@ -496,7 +507,8 @@ int main( int argc, const char** argv )
 	b2Vec2 locationWorld;
 	b2MouseJoint *_mouseJoint;
 	Size size(WORLDW*pixel, WORLDH*pixel);
-	int c1=228, c2=48, c3=65;
+	int c1=50, c2=26;
+	int thresh1=35, thresh2=42,thresh3=33;
 	double angle_val = 0 ;
 	RotatedRect rRect;
 	Point2f vertices[4];
@@ -570,7 +582,7 @@ int main( int argc, const char** argv )
 	//Player.body->ApplyLinearImpulse(force, Player.body->GetPosition());
 	
 	//namedWindow( "Lines ", CV_WINDOW_AUTOSIZE);
-	namedWindow( "Capture ", CV_WINDOW_AUTOSIZE);
+	// namedWindow( "Aughit ", CV_WINDOW_AUTOSIZE);
 	// setMouseCallback("Capture ", mouse_callback, NULL);
 	frame=cvLoadImage("test.jpg");
 	gameover=cvLoadImageM("gameover.jpg");
@@ -643,6 +655,7 @@ int main( int argc, const char** argv )
   		pos[3]=pospoly->GetVertex(3);
   		#endif
 	 	 newcoord.x=Threshx;
+		*angle=angle_val;
 	 	 newcoord.y=WORLDH-2;
 	 	 /**angle*/
 		measurement(0)=newcoord.x;
@@ -658,11 +671,10 @@ int main( int argc, const char** argv )
 		newcoord.x=newcoord.x/pixel;
 	// 	//cout<<newcoord.x<<"\n";
 		#ifdef RECTANGULAR
-		if(key == 't')
-			angle_val+=0.0176;
-		if(key == 'y')
-			angle_val-=0.0176;
-		*angle=angle_val;
+		// if(key == 't')
+		// 	angle_val+=0.0176;
+		// if(key == 'y')
+		// 	angle_val-=0.0176;
 		posp=getPoints(pos, *angle);
 
   		for(int c=0;c<4;c++)
@@ -751,27 +763,109 @@ int main( int argc, const char** argv )
 					}
 				capture >> frame;
 				resize(frame, frame, size);
-    			namedWindow( "Camera ", CV_WINDOW_AUTOSIZE );
-				cvCreateTrackbar("Threshold Red","Camera ",&c1,255); 
-				cvCreateTrackbar("Threshold Green","Camera ",&c2,255); 
-				cvCreateTrackbar("Threshold Blue","Camera ",&c3,255);
-				lineimg=getbox(frame, c1, c2, c3, angle, &newcoord.x); 
-				Mat element = getStructuringElement( morph_elem, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
-				GaussianBlur (lineimg, lineimg, Size(1,1),0,0);
-				morphologyEx(lineimg , lineimg, OPENING ,element);
-				double paddle_slope = goodFeaturesToTrack_Demo( lineimg , 0 , 0);
-				double paddle_angle = atan(paddle_slope) * 180 / PI;
-				cout << "Angle of tilt: " << paddle_angle << endl;
-				angle_val = (paddle_angle)*FACTOR;
-				cout << "Angle Value to be feeded" << angle_val << endl; 
-				vector<blob> blobs;
-				GetBlobs(lineimg,blobs);
-				if(blobs.size()==1)
-					{ cout << "\n" << blobs[0].cen_x << " " << blobs[0].cen_y << endl;
-						Threshx = blobs[0].cen_x;
-			}
+    			namedWindow( "BW", CV_WINDOW_AUTOSIZE );
+				cvCreateTrackbar("Threshold 1","BW",&c1,255); 
+				cvCreateTrackbar("Threshold 2","BW",&c2,255); 
+				cvCreateTrackbar("Threshold R","BW",&thresh1,255); 
+				cvCreateTrackbar("Threshold G","BW",&thresh2,255); 
+				cvCreateTrackbar("Threshold B","BW",&thresh3,255); 
+			 	// /*lineimg*/
+			 	frame=getbox(frame, thresh1, thresh2, thresh3, angle, &newcoord.x); 
+			// 	Mat element = getStructuringElement( morph_elem, Size( 2*morph_size + 1, 2*morph_size+1 ), Point( morph_size, morph_size ) );
+			// 	GaussianBlur (lineimg, lineimg, Size(1,1),0,0);
+			// 	morphologyEx(lineimg , lineimg, OPENING ,element);
+			// 	double paddle_slope = goodFeaturesToTrack_Demo( lineimg , 0 , 0);
+			// 	double paddle_angle = atan(paddle_slope) * 180 / PI;
+			// 	cout << "Angle of tilt: " << paddle_angle << endl;
+			// 	angle_val = (paddle_angle++)*FACTOR;
+			// 	cout << "Angle Value to be feeded" << angle_val << endl; 
+			// 	vector<blob> blobs;
+			// 	GetBlobs(lineimg,blobs);
+			// 	if(blobs.size()==1)
+			// 		{ cout << "\n" << blobs[0].cen_x << " " << blobs[0].cen_y << endl;
+			// 			Threshx = blobs[0].cen_x;
+			// }
+
+				// Mat gray;
+				// cvtColor(frame, gray, CV_BGR2GRAY);
+
+				// Use Canny instead of threshold to catch squares with gradient shading
+				cv::Mat bw;
+				cv::Canny(frame, bw, c1, c2, 3);
+
+				// Find contours
+				std::vector<std::vector<cv::Point> > contours;
+				cv::findContours(bw.clone(), contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+
+				std::vector<cv::Point> approx;
+				cv::Mat dst = frame.clone();
+
+
+				for (int i = 0; i < contours.size(); i++)
+				{
+					// Approximate contour with accuracy proportional
+					// to the contour perimeter
+					cv::approxPolyDP(cv::Mat(contours[i]), approx, cv::arcLength(cv::Mat(contours[i]), true)*0.02, true);
+
+					// Skip small or non-convex objects 
+					if (std::fabs(cv::contourArea(contours[i])) < 100 || !cv::isContourConvex(approx))
+						continue;
+					cout << approx.size() << " is approx size " << endl;
+					cout << argv[1][0] << endl;
+					if (/*approx.size() <= 4 || */argv[1][0]=='r')
+					{
+						// Number of vertices of polygonal curve
+						int vtc = approx.size();
+
+						// Get the cosines of all corners
+						std::vector<double> cos;
+						for (int j = 2; j < vtc+1; j++)
+							cos.push_back(findangle(approx[j%vtc], approx[j-2], approx[j-1]));
+
+						// Sort ascending the cosine values
+						std::sort(cos.begin(), cos.end());
+
+						// Get the lowest and the highest cosine
+						double mincos = cos.front();
+						double maxcos = cos.back();
+						double paddle_angle = 0;
+						// Use the degrees obtained above and the number of vertices
+						// to determine the shape of the contour
+						if (argv[1][0]=='r' || (vtc == 4 && mincos >= -0.1 && maxcos <= 0.3))
+							{
+								// for(int i=0;i<vtc;i++)
+								// 	cout << approx[i].x << " " << approx[i].y << endl;
+								cout << "Rectangular Paddle\n";
+								Threshx = ( approx[0].x + approx[1].x + approx[2].x + approx[3].x ) * 0.25;
+								if((approx[0].x-approx[1].x)*(approx[0].x-approx[1].x)+(approx[0].y-approx[1].y)*(approx[0].y-approx[1].y) > (approx[1].x-approx[2].x)*(approx[1].x-approx[2].x)+(approx[1].y-approx[2].y)*(approx[1].y-approx[2].y))
+									paddle_angle = atan((double)(approx[0].y-approx[1].y)/(double)(approx[0].x-approx[1].x));
+								else
+									paddle_angle = atan((double)(approx[1].y-approx[2].y)/(double)(approx[1].x-approx[2].x));
+ 								
+ 								paddle_angle=paddle_angle*180/PI;
+ 								if(paddle_angle<0)
+ 									paddle_angle = -paddle_angle;
+ 								else 
+ 									paddle_angle = 180 - paddle_angle;
+ 								cout << paddle_angle << endl;
+ 								angle_val = (180-paddle_angle) * FACTOR;
+							}
+							// setLabel(dst, "RECT", contours[i]);
+					}
+					else if (argv[1][0]=='c'/*approx.size() > 4*/)
+						{
+							cout << "Semi-Circular Paddle\n";
+							// Threshx = ( approx[0].x + approx[1].x + approx[2].x + approx[3].x ) * 0.25;
+								vector<blob> blobs;
+								GetBlobs(dst,blobs);
+								if(blobs.size()==1)
+									{Threshx = blobs[0].cen_x;
+									cout << Threshx <<endl;}
+						}	
+				}
+				cv::imshow("dst", dst);
+				imshow("BW",bw);
 				imshow("Frame", frame);
-				imshow("Camera ", lineimg);
 				capture.release();
 				char a = waitKey(33);
 				if(a==27) 

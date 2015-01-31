@@ -14,7 +14,7 @@
 #include <queue>
 
 #define ROUND2
-#define ADDPAUSE_NO
+#define ADDPAUSE
 #define CIRCULAR
 #define ANGLEDETECT
 #define CAMERAFEED
